@@ -29,19 +29,10 @@ jobs:
               env:
                   NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-            - name: Configure npm registry and auth
-              run: |
-                  set -euo pipefail
-                  R="${NPM_REGISTRY_URL:-https://registry.npmjs.org/}"
-                  HOST="$(node -e "console.log(new URL(process.argv[1]).host)" "$R")"
-                  {
-                      echo "registry=$R"
-                      echo "always-auth=true"
-                      echo "//${HOST}/:_authToken=${NODE_AUTH_TOKEN}"
-                  } >> .npmrc
+            - name: Install dependencies (public npm)
+              run: npm ci
               env:
-                  NPM_REGISTRY_URL: ${{ secrets.NPM_REGISTRY_URL }}
-                  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+                  NPM_CONFIG_REGISTRY: https://registry.npmjs.org/
 
             - name: Verify git tag matches package.json version
               if: github.ref_type == 'tag'
@@ -53,6 +44,18 @@ jobs:
                       exit 1
                   fi
 
-            - run: npm ci
+            - name: Configure npm for publish only
+              run: |
+                  set -euo pipefail
+                  R="${NPM_REGISTRY_URL:-https://registry.npmjs.org/}"
+                  HOST="$(node -e "console.log(new URL(process.argv[1]).host)" "$R")"
+                  {
+                      echo "registry=$R"
+                      echo "always-auth=true"
+                      echo "//${HOST}/:_authToken=${NODE_AUTH_TOKEN}"
+                  } > .npmrc
+              env:
+                  NPM_REGISTRY_URL: ${{ secrets.NPM_REGISTRY_URL }}
+                  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
             - run: npm publish
