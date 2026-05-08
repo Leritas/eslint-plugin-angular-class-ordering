@@ -6,8 +6,10 @@ on:
             - 'v[0-9]+.[0-9]+.[0-9]+'
     workflow_dispatch:
 
+# Trusted Publishing (OIDC): npm recommends this instead of long-lived publish tokens + bypass 2FA.
 permissions:
     contents: read
+    id-token: write
 
 jobs:
     publish:
@@ -18,18 +20,12 @@ jobs:
             - uses: actions/setup-node@v4
               with:
                   node-version: '22'
-                  cache: npm
+                  registry-url: https://registry.npmjs.org
 
-            - name: Require npm token
-              run: |
-                  if [ -z "${NODE_AUTH_TOKEN:-}" ]; then
-                      echo "::error::Add repository secret NPM_TOKEN (publish token for your registry)."
-                      exit 1
-                  fi
-              env:
-                  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+            - name: Upgrade npm
+              run: npm install -g npm@^11.5.1
 
-            - name: Install dependencies (public npm)
+            - name: Install dependencies (registry.npmjs.org)
               run: npm ci
               env:
                   NPM_CONFIG_REGISTRY: https://registry.npmjs.org/
@@ -44,18 +40,7 @@ jobs:
                       exit 1
                   fi
 
-            - name: Configure npm for publish only
-              run: |
-                  set -euo pipefail
-                  R="${NPM_REGISTRY_URL:-https://registry.npmjs.org/}"
-                  HOST="$(node -e "console.log(new URL(process.argv[1]).host)" "$R")"
-                  {
-                      echo "registry=$R"
-                      echo "always-auth=true"
-                      echo "//${HOST}/:_authToken=${NODE_AUTH_TOKEN}"
-                  } > .npmrc
-              env:
-                  NPM_REGISTRY_URL: ${{ secrets.NPM_REGISTRY_URL }}
-                  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-            - run: npm publish
+            # Uses GitHub OIDC when Trusted Publisher is configured on npmjs for this repo + publish.yml.
+            # No NPM_TOKEN secret required for registry.npmjs.org.
+            - name: Publish to npm
+              run: npm publish
