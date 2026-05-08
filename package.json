@@ -1,6 +1,6 @@
 {
   "name": "eslint-plugin-angular-class-ordering",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "ESLint plugin with an Angular-aware class member ordering rule and auto-fix",
   "author": "Leritas <i@leritas.ru>",
   "main": "lib/index.js",
@@ -25,7 +25,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Leritas/eslint-plugin-angular-class-ordering.git"
+    "url": "git+https://github.com/Leritas/eslint-plugin-angular-class-ordering.git"
   },
   "bugs": {
     "url": "https://github.com/Leritas/eslint-plugin-angular-class-ordering/issues"
@@ -35,6 +35,7 @@
     "node": "^18.18.0 || ^20.9.0 || >=21.1.0"
   },
   "scripts": {
+    "prepublishOnly": "npm test && npm run lint && npm run format:check",
     "test": "jest",
     "test:watch": "jest --watch",
     "lint": "eslint .",
