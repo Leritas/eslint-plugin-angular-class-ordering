@@ -1,8 +1,8 @@
-'use strict';
-
-const { RuleTester } = require('@typescript-eslint/rule-tester');
-const parser = require('@typescript-eslint/parser');
-const rule = require('../lib/rules/member-ordering').rule;
+/* Partial rule options in cases mirror ESLint runtime; RuleTester typings expect the full default tuple. */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { RuleTester } from '@typescript-eslint/rule-tester';
+import parser from '@typescript-eslint/parser';
+import { rule } from '../src/rules/member-ordering';
 
 const ruleTester = new RuleTester({
     languageOptions: {
@@ -13,7 +13,7 @@ const ruleTester = new RuleTester({
             project: false,
         },
     },
-});
+} as any);
 
 ruleTester.run('member-ordering', rule, {
     valid: [
@@ -243,7 +243,7 @@ export class NotLinted {
     other = 2;
 }
 `,
-            options: [{ decorators: ['Pipe'] }],
+            options: [{ decorators: ['Pipe'] }] as any,
         },
         {
             name: 'export default class declaration',
@@ -276,7 +276,7 @@ export class X {
                     unknownPlacement: 'ignore',
                     order: ['inject'],
                 },
-            ],
+            ] as any,
         },
         {
             name: 'unknownPlacement last ranks unknown slot after configured keys',
@@ -299,7 +299,7 @@ export class X {
                     unknownPlacement: 'last',
                     order: ['constructor', 'inject'],
                 },
-            ],
+            ] as any,
         },
         {
             name: 'pattern slot captures member source before ordinary field',
@@ -321,7 +321,7 @@ export class X {
                 {
                     order: ['inject', { type: 'pattern', regex: 'legacyTracked' }, 'public-instance-field'],
                 },
-            ],
+            ] as any,
         },
         {
             name: 'Injectable matches default decorators list',
@@ -430,7 +430,7 @@ export class X {
                     unknownPlacement: 'error',
                     order: ['inject'],
                 },
-            ],
+            ] as any,
             errors: [{ messageId: 'unknownCategory' }],
         },
         {
@@ -454,7 +454,7 @@ export class X {
                     unknownPlacement: 'error',
                     order: ['constructor', 'inject'],
                 },
-            ],
+            ] as any,
             errors: [{ messageId: 'wrongOrder' }, { messageId: 'unknownCategory' }],
         },
         {

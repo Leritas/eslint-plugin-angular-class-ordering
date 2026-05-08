@@ -2,13 +2,15 @@
 
 const globals = require('globals');
 const eslintConfigPrettier = require('eslint-config-prettier');
+const tseslint = require('typescript-eslint');
 
-module.exports = [
+module.exports = tseslint.config(
     {
-        ignores: ['node_modules/**', 'coverage/**'],
+        ignores: ['node_modules/**', 'coverage/**', 'lib/**'],
     },
+    ...tseslint.configs.recommended,
     {
-        files: ['lib/**/*.js'],
+        files: ['eslint.config.js', 'jest.config.js'],
         languageOptions: {
             ecmaVersion: 'latest',
             sourceType: 'commonjs',
@@ -22,15 +24,18 @@ module.exports = [
         },
     },
     {
-        files: ['tests/**/*.js'],
+        files: ['tests/**/*.ts'],
         languageOptions: {
-            ecmaVersion: 'latest',
-            sourceType: 'commonjs',
             globals: {
-                ...globals.node,
                 ...globals.jest,
             },
         },
     },
     eslintConfigPrettier,
-];
+    {
+        files: ['eslint.config.js', 'jest.config.js'],
+        rules: {
+            '@typescript-eslint/no-require-imports': 'off',
+        },
+    },
+);

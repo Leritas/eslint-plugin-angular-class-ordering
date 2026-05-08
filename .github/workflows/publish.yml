@@ -40,7 +40,9 @@ jobs:
                       exit 1
                   fi
 
+            - name: Build published artifacts
+              run: npm run build
+
             # Uses GitHub OIDC when Trusted Publisher is configured on npmjs for this repo + publish.yml.
-            # No NPM_TOKEN secret required for registry.npmjs.org.
             - name: Publish to npm
               run: npm publish
