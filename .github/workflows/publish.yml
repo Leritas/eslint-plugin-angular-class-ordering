@@ -22,6 +22,16 @@ jobs:
                   node-version: '22'
                   registry-url: https://registry.npmjs.org
 
+            # Trusted Publishing (OIDC) requires npm CLI ≥ 11.5.1. Bundled npm on Node 22 is older → misleading E404 on publish.
+            # Do NOT `npm install -g npm` over the runner toolchain (can MODULE_NOT_FOUND). Install npm 11 into its own prefix instead.
+            - name: Use npm 11 for Trusted Publishing
+              run: |
+                  NPM_PREFIX="$RUNNER_TEMP/npm-publish-cli"
+                  mkdir -p "$NPM_PREFIX"
+                  npm install -g npm@11.14.0 --prefix "$NPM_PREFIX"
+                  echo "$NPM_PREFIX/bin" >> "$GITHUB_PATH"
+                  "$NPM_PREFIX/bin/npm" --version
+
             - name: Install dependencies (registry.npmjs.org)
               run: npm ci
               env:
