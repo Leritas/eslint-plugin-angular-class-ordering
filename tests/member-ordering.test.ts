@@ -57,15 +57,15 @@ export class X {
 `,
         },
         {
-            name: 'abstract signature precedes constructor',
+            name: 'constructor precedes abstract members per default order',
             code: `
 import { Component } from '@angular/core';
 
 @Component({ selector: 'app-x', template: '' })
 export abstract class X {
-    abstract foo(): void;
-
     constructor() {}
+
+    abstract foo(): void;
 }
 `,
         },
@@ -302,7 +302,7 @@ export class X {
             ] as any,
         },
         {
-            name: 'pattern slot captures member source before ordinary field',
+            name: 'regex: shorthand overlays before public-instance-field',
             code: `
 import { Component, inject } from '@angular/core';
 
@@ -319,7 +319,77 @@ export class X {
 `,
             options: [
                 {
-                    order: ['inject', { type: 'pattern', regex: 'legacyTracked' }, 'public-instance-field'],
+                    order: ['inject', 'regex:legacyTracked', 'public-instance-field'],
+                },
+            ] as any,
+        },
+        {
+            name: 'inject() with import alias resolves to inject slot',
+            code: `
+import { Component, inject as injectService } from '@angular/core';
+
+class Foo {}
+
+@Component({ selector: 'app-x', template: '' })
+export class X {
+    private readonly svc = injectService(Foo);
+}
+`,
+        },
+        {
+            name: 'nested signal() with local import alias resolves to signal slot',
+            code: `
+import { Component, signal as sig } from '@angular/core';
+
+function wrap<T>(v: T) {
+    return v;
+}
+
+@Component({ selector: 'app-x', template: '' })
+export class X {
+    readonly boxed = wrap(sig(0));
+}
+`,
+        },
+        {
+            name: 'custom-func overlays between signal and linkedSignal',
+            code: `
+import { Component, signal, linkedSignal } from '@angular/core';
+
+declare function boxedSignal<T>(v: T): T;
+
+@Component({ selector: 'app-x', template: '' })
+export class X {
+    readonly plainSig = signal(0);
+
+    readonly wrapped = boxedSignal(1);
+
+    readonly linked = linkedSignal(() => this.plainSig());
+}
+`,
+            options: [
+                {
+                    order: ['signal', 'custom-func-boxedSignal', 'linkedSignal', 'computed', 'public-instance-field'],
+                },
+            ] as any,
+        },
+        {
+            name: 'custom-dec slot for non-Angular decorator overlays before ordinary field',
+            code: `
+import { Component } from '@angular/core';
+
+declare function Track(opts?: unknown): PropertyDecorator;
+
+@Component({ selector: 'app-x', template: '' })
+export class X {
+    @Track() trackedVal = true;
+
+    plain = 1;
+}
+`,
+            options: [
+                {
+                    order: ['constructor', 'custom-dec-Track', 'public-instance-field'],
                 },
             ] as any,
         },
@@ -510,6 +580,43 @@ export class X {
 `,
         },
         {
+            name: 'pattern overlay out of rank vs ordinary field gets fixed',
+            code: `
+import { Component, inject } from '@angular/core';
+
+class Foo {}
+
+@Component({ selector: 'app-x', template: '' })
+export class X {
+    private readonly svc = inject(Foo);
+
+    plain = 1;
+
+    legacyTracked = true;
+}
+`,
+            options: [
+                {
+                    order: ['inject', { type: 'pattern', regex: 'legacyTracked' }, 'public-instance-field'],
+                },
+            ] as any,
+            errors: [{ messageId: 'wrongOrder' }],
+            output: `
+import { Component, inject } from '@angular/core';
+
+class Foo {}
+
+@Component({ selector: 'app-x', template: '' })
+export class X {
+    private readonly svc = inject(Foo);
+
+    legacyTracked = true;
+
+    plain = 1;
+}
+`,
+        },
+        {
             name: 'private static field must not precede public static field',
             code: `
 import { Component } from '@angular/core';
@@ -530,6 +637,280 @@ export class X {
     public static pub = 2;
 
     private static priv = 1;
+}
+`,
+        },
+        {
+            name: 'full DEFAULT_ORDER showcase: chaotic members then auto-fixed layout',
+            code: `
+import {
+    Component,
+    EventEmitter,
+    Output,
+    Input,
+    inject,
+    input,
+    output,
+    model,
+    signal,
+    linkedSignal,
+    computed,
+    viewChild,
+    viewChildren,
+    contentChild,
+    contentChildren,
+    hostBinding,
+    hostListener,
+    ViewChild,
+    ViewChildren,
+    ContentChild,
+    ContentChildren,
+    HostBinding,
+    HostListener,
+    ElementRef,
+} from '@angular/core';
+
+declare function Select(...args: unknown[]): PropertyDecorator;
+
+@Component({ selector: 'app-kitchen-sink', template: '' })
+export abstract class KitchenSink {
+    private privInstM(): void {}
+
+    public static pubStaticF = 1;
+
+    @Output() outDec = new EventEmitter<void>();
+
+    readonly modelField = model('');
+
+    protected protInstF = 1;
+
+    abstract absMethod(): void;
+
+    readonly scrollHost = hostListener('window:scroll', () => {});
+
+    @HostListener('window:resize')
+    onResize(): void {}
+
+    readonly inSig = input('');
+
+    @Input() inDec = '';
+
+    private static privStaticM(): void {}
+
+    readonly outSig = output<void>();
+
+    @ViewChild('refA') viewDec?: ElementRef;
+
+    public pubInstM(): void {}
+
+    constructor() {}
+
+    private privInstF = 2;
+
+    readonly baseSig = signal(0);
+
+    @ContentChildren('q') contentDecList?: unknown;
+
+    @Select() slice$ = {} as unknown;
+
+    store = { selectSignal: () => signal(0), select: () => ({}) };
+
+    readonly fromObs = this.store.select(() => ({}));
+
+    readonly fromSig = this.store.selectSignal(() => 0);
+
+    @HostBinding('class.active') hostBindDec = true;
+
+    readonly hostBindSig = hostBinding('attr.data-x');
+
+    readonly contentSig = contentChild('slotB');
+
+    @ContentChild('slotB') contentDec?: unknown;
+
+    readonly viewSig = viewChild<ElementRef>('refA');
+
+    @ViewChildren('items') viewDecList?: unknown;
+
+    readonly viewSigMulti = viewChildren('items');
+
+    readonly contentSigMulti = contentChildren('q');
+
+    readonly linked = linkedSignal(() => this.baseSig());
+
+    readonly derived = computed(() => this.baseSig() + 1);
+
+    private readonly injected = inject(ElementRef);
+
+    public pubInstF = 3;
+
+    protected protInstM(): void {}
+
+    protected static protStaticM(): void {}
+
+    public static pubStaticM(): void {}
+
+    private static privStaticF = 2;
+
+    protected static protStaticF = 3;
+
+    private _pair = 0;
+
+    get paired(): number {
+        return this._pair;
+    }
+
+    set paired(v: number) {
+        this._pair = v;
+    }
+}
+`,
+            errors: [{ messageId: 'wrongOrder' }],
+            output: `
+import {
+    Component,
+    EventEmitter,
+    Output,
+    Input,
+    inject,
+    input,
+    output,
+    model,
+    signal,
+    linkedSignal,
+    computed,
+    viewChild,
+    viewChildren,
+    contentChild,
+    contentChildren,
+    hostBinding,
+    hostListener,
+    ViewChild,
+    ViewChildren,
+    ContentChild,
+    ContentChildren,
+    HostBinding,
+    HostListener,
+    ElementRef,
+} from '@angular/core';
+
+declare function Select(...args: unknown[]): PropertyDecorator;
+
+@Component({ selector: 'app-kitchen-sink', template: '' })
+export abstract class KitchenSink {
+    constructor() {}
+
+    private readonly injected = inject(ElementRef);
+
+    readonly inSig = input('');
+
+    @Input() inDec = '';
+
+    readonly outSig = output<void>();
+
+    @Output() outDec = new EventEmitter<void>();
+
+    readonly modelField = model('');
+
+    readonly hostBindSig = hostBinding('attr.data-x');
+
+    @HostBinding('class.active') hostBindDec = true;
+
+    readonly scrollHost = hostListener('window:scroll', () => {});
+
+    @HostListener('window:resize')
+    onResize(): void {}
+
+    readonly viewSig = viewChild<ElementRef>('refA');
+    readonly viewSigMulti = viewChildren('items');
+
+    @ViewChild('refA') viewDec?: ElementRef;
+    @ViewChildren('items') viewDecList?: unknown;
+
+    readonly contentSig = contentChild('slotB');
+    readonly contentSigMulti = contentChildren('q');
+
+    @ContentChildren('q') contentDecList?: unknown;
+    @ContentChild('slotB') contentDec?: unknown;
+
+    readonly fromSig = this.store.selectSignal(() => 0);
+
+    readonly fromObs = this.store.select(() => ({}));
+
+    @Select() slice$ = {} as unknown;
+
+    readonly baseSig = signal(0);
+
+    readonly linked = linkedSignal(() => this.baseSig());
+
+    readonly derived = computed(() => this.baseSig() + 1);
+
+    public static pubStaticF = 1;
+
+    protected static protStaticF = 3;
+
+    private static privStaticF = 2;
+
+    store = { selectSignal: () => signal(0), select: () => ({}) };
+    public pubInstF = 3;
+
+    protected protInstF = 1;
+
+    private privInstF = 2;
+    private _pair = 0;
+
+    get paired(): number {
+        return this._pair;
+    }
+    set paired(v: number) {
+        this._pair = v;
+    }
+
+    abstract absMethod(): void;
+
+    public static pubStaticM(): void {}
+
+    protected static protStaticM(): void {}
+
+    private static privStaticM(): void {}
+
+    public pubInstM(): void {}
+
+    protected protInstM(): void {}
+
+    private privInstM(): void {}
+}
+`,
+        },
+        {
+            name: '@Track field after ordinary field violates custom-dec overlay order',
+            code: `
+import { Component } from '@angular/core';
+
+declare function Track(opts?: unknown): PropertyDecorator;
+
+@Component({ selector: 'app-x', template: '' })
+export class X {
+    plain = 1;
+
+    @Track() trackedVal = true;
+}
+`,
+            options: [
+                {
+                    order: ['constructor', 'custom-dec-Track', 'public-instance-field'],
+                },
+            ] as any,
+            errors: [{ messageId: 'wrongOrder' }],
+            output: `
+import { Component } from '@angular/core';
+
+declare function Track(opts?: unknown): PropertyDecorator;
+
+@Component({ selector: 'app-x', template: '' })
+export class X {
+    @Track() trackedVal = true;
+
+    plain = 1;
 }
 `,
         },
