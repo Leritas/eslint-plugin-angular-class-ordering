@@ -1,0 +1,16 @@
+printWidth: 120
+tabWidth: 4
+singleQuote: true
+trailingComma: all
+arrowParens: always
+
+overrides:
+    - files: '*.ts'
+      options:
+          parser: typescript
+    - files: '*.html'
+      options:
+          tabWidth: 2
+    - files: '*.json'
+      options:
+          tabWidth: 2
