@@ -1,7 +1,7 @@
 {
   "name": "eslint-plugin-angular-class-ordering",
-  "version": "0.4.0",
-  "description": "ESLint plugin with an Angular-aware class member ordering rule and auto-fix",
+  "version": "0.5.0",
+  "description": "ESLint plugin: Angular class member ordering, prefer-inject-function, forbid-nested-super-injections",
   "author": "Leritas <i@leritas.ru>",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -23,6 +23,8 @@
     "eslintplugin",
     "angular",
     "member-ordering",
+    "inject",
+    "dependency-injection",
     "signals",
     "typescript"
   ],
@@ -50,7 +52,8 @@
     "format:check": "prettier --check ."
   },
   "dependencies": {
-    "@typescript-eslint/utils": "^8.18.0"
+    "@typescript-eslint/utils": "^8.18.0",
+    "@typescript-eslint/visitor-keys": "^8.18.0"
   },
   "peerDependencies": {
     "@typescript-eslint/parser": "^8.0.0",

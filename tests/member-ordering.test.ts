@@ -422,6 +422,46 @@ export class X {
 }
 `,
         },
+        {
+            name: 'call named inject not from @angular/core is ordinary field, not inject slot',
+            code: `
+import { Component, inject as ngInject } from '@angular/core';
+
+class Service {}
+
+function inject<T>(t: T): T {
+    return t;
+}
+
+@Component({ selector: 'app-x', template: '' })
+export class X {
+    constructor() {}
+
+    private readonly fromCore = ngInject(Service);
+
+    fromLocalFn = inject(Service);
+}
+`,
+        },
+        {
+            name: 'static block alongside members does not confuse ordering',
+            code: `
+import { Component, inject } from '@angular/core';
+
+class Foo {}
+
+@Component({ selector: 'app-x', template: '' })
+export class X {
+    static {
+        void 0;
+    }
+
+    constructor() {}
+
+    private readonly svc = inject(Foo);
+}
+`,
+        },
     ],
     invalid: [
         {
@@ -450,6 +490,44 @@ export class X {
 
     readonly title = input<string>();
 
+    plain = 1;
+}
+`,
+        },
+        {
+            name: 'autofix keeps each member JSDoc attached when reordering',
+            code: `
+import { Component, inject, input } from '@angular/core';
+
+class Foo {}
+
+@Component({ selector: 'app-x', template: '' })
+export class X {
+    /** Documents plain field. */
+    plain = 1;
+
+    /** Documents injected service. */
+    private readonly svc = inject(Foo);
+
+    /** Documents title input. */
+    readonly title = input<string>();
+}
+`,
+            errors: [{ messageId: 'wrongOrder' }],
+            output: `
+import { Component, inject, input } from '@angular/core';
+
+class Foo {}
+
+@Component({ selector: 'app-x', template: '' })
+export class X {
+    /** Documents injected service. */
+    private readonly svc = inject(Foo);
+
+    /** Documents title input. */
+    readonly title = input<string>();
+
+    /** Documents plain field. */
     plain = 1;
 }
 `,
@@ -526,6 +604,7 @@ export class X {
                 },
             ] as any,
             errors: [{ messageId: 'wrongOrder' }, { messageId: 'unknownCategory' }],
+            output: null,
         },
         {
             name: 'decorator category out of order vs inject is fixed',
@@ -911,6 +990,43 @@ export class X {
     @Track() trackedVal = true;
 
     plain = 1;
+}
+`,
+        },
+        {
+            name: 'ternary with inject() branches classifies as public field — fix pulls core inject above',
+            code: `
+import { Component, inject } from '@angular/core';
+
+class A {}
+class B {}
+
+@Component({ selector: 'app-x', template: '' })
+export class X {
+    constructor() {}
+
+    flag = true;
+
+    x = flag ? inject(A) : inject(B);
+
+    y = inject(A);
+}
+`,
+            errors: [{ messageId: 'wrongOrder' }],
+            output: `
+import { Component, inject } from '@angular/core';
+
+class A {}
+class B {}
+
+@Component({ selector: 'app-x', template: '' })
+export class X {
+    constructor() {}
+
+    y = inject(A);
+
+    flag = true;
+    x = flag ? inject(A) : inject(B);
 }
 `,
         },
