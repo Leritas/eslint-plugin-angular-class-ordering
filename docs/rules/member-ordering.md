@@ -238,9 +238,7 @@ export class X {
 
 ## Full example: every default slot (before and after fix)
 
-The first block is deliberately **shuffled** — it includes one member for each category in [`DEFAULT_ORDER`](../../src/rules/member-ordering.ts) (constructor through visibility methods, plus `getter-setter` and `abstract`), and a tiny NgRx-shaped `store`/`selectSignal`/`select` demo. The second block is the exact result of ESLint **`--fix`** (spacing follows the built-in gap heuristics).
-
-> **Note:** The `store` field is ordered after `selectSignal`/`select` fields here only so the example fits the default slot list; at runtime you would normally inject a store or declare `store` above those members. Treat this as an illustration of **lint ordering**, not Angular data-flow.
+The first block is deliberately **shuffled** — it includes one member for each category in [`DEFAULT_ORDER`](../../src/rules/member-ordering.ts) (constructor through visibility methods, plus `getter-setter` and `abstract`), and a small NgRx-style demo: `inject(Store)` plus fields that call `selectSignal` / `select` on that store. The second block is the exact result of ESLint **`--fix`** (spacing follows the built-in gap heuristics).
 
 **Before (chaos):**
 
@@ -273,6 +271,12 @@ import {
 } from '@angular/core';
 
 declare function Select(...args: unknown[]): PropertyDecorator;
+
+/** NgRx-like store surface for the demo only (types are intentionally loose). */
+declare class Store {
+    selectSignal<T>(projector: () => T): unknown;
+    select(projector: () => unknown): unknown;
+}
 
 @Component({ selector: 'app-kitchen-sink', template: '' })
 export abstract class KitchenSink {
@@ -315,8 +319,6 @@ export abstract class KitchenSink {
 
     @Select() slice$ = {} as unknown;
 
-    store = { selectSignal: () => signal(0), select: () => ({}) };
-
     readonly fromObs = this.store.select(() => ({}));
 
     readonly fromSig = this.store.selectSignal(() => 0);
@@ -342,6 +344,7 @@ export abstract class KitchenSink {
     readonly derived = computed(() => this.baseSig() + 1);
 
     private readonly injected = inject(ElementRef);
+    private readonly store = inject(Store);
 
     public pubInstF = 3;
 
@@ -399,11 +402,18 @@ import {
 
 declare function Select(...args: unknown[]): PropertyDecorator;
 
+/** NgRx-like store surface for the demo only (types are intentionally loose). */
+declare class Store {
+    selectSignal<T>(projector: () => T): unknown;
+    select(projector: () => unknown): unknown;
+}
+
 @Component({ selector: 'app-kitchen-sink', template: '' })
 export abstract class KitchenSink {
     constructor() {}
 
     private readonly injected = inject(ElementRef);
+    private readonly store = inject(Store);
 
     readonly inSig = input('');
 
@@ -454,7 +464,6 @@ export abstract class KitchenSink {
 
     private static privStaticF = 2;
 
-    store = { selectSignal: () => signal(0), select: () => ({}) };
     public pubInstF = 3;
 
     protected protInstF = 1;

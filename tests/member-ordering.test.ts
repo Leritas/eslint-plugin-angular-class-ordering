@@ -751,6 +751,12 @@ import {
 
 declare function Select(...args: unknown[]): PropertyDecorator;
 
+/** NgRx-like store surface for the demo only (types are intentionally loose). */
+declare class Store {
+    selectSignal<T>(projector: () => T): unknown;
+    select(projector: () => unknown): unknown;
+}
+
 @Component({ selector: 'app-kitchen-sink', template: '' })
 export abstract class KitchenSink {
     private privInstM(): void {}
@@ -792,8 +798,6 @@ export abstract class KitchenSink {
 
     @Select() slice$ = {} as unknown;
 
-    store = { selectSignal: () => signal(0), select: () => ({}) };
-
     readonly fromObs = this.store.select(() => ({}));
 
     readonly fromSig = this.store.selectSignal(() => 0);
@@ -819,6 +823,7 @@ export abstract class KitchenSink {
     readonly derived = computed(() => this.baseSig() + 1);
 
     private readonly injected = inject(ElementRef);
+    private readonly store = inject(Store);
 
     public pubInstF = 3;
 
@@ -874,11 +879,18 @@ import {
 
 declare function Select(...args: unknown[]): PropertyDecorator;
 
+/** NgRx-like store surface for the demo only (types are intentionally loose). */
+declare class Store {
+    selectSignal<T>(projector: () => T): unknown;
+    select(projector: () => unknown): unknown;
+}
+
 @Component({ selector: 'app-kitchen-sink', template: '' })
 export abstract class KitchenSink {
     constructor() {}
 
     private readonly injected = inject(ElementRef);
+    private readonly store = inject(Store);
 
     readonly inSig = input('');
 
@@ -929,7 +941,6 @@ export abstract class KitchenSink {
 
     private static privStaticF = 2;
 
-    store = { selectSignal: () => signal(0), select: () => ({}) };
     public pubInstF = 3;
 
     protected protInstF = 1;

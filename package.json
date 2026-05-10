@@ -1,6 +1,6 @@
 {
   "name": "eslint-plugin-angular-class-ordering",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "ESLint plugin: Angular class member ordering, prefer-inject-function, forbid-nested-super-injections",
   "author": "Leritas <i@leritas.ru>",
   "main": "lib/index.js",
