@@ -293,11 +293,7 @@ export class X {
   private readonly token = inject(TOK);
 }
 `,
-            errors: [
-                { messageId: 'preferInject' },
-                { messageId: 'preferInject' },
-                { messageId: 'preferInject' },
-            ],
+            errors: [{ messageId: 'preferInject' }, { messageId: 'preferInject' }, { messageId: 'preferInject' }],
         },
         {
             name: 'union type param is reported without autofix',
@@ -354,11 +350,7 @@ export class X {
   private readonly priv = inject(Priv);
 }
 `,
-            errors: [
-                { messageId: 'preferInject' },
-                { messageId: 'preferInject' },
-                { messageId: 'preferInject' },
-            ],
+            errors: [{ messageId: 'preferInject' }, { messageId: 'preferInject' }, { messageId: 'preferInject' }],
         },
     ],
 });
