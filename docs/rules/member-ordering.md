@@ -2,12 +2,24 @@
 
 Enforces a consistent, Angular-aware order for class members in classes decorated with Angular decorators (by default: `Component`, `Directive`, `Injectable`, `Pipe`).
 
-The rule classifies members using:
+The plugin’s **`recommended`** preset turns **only** this rule on (at `error`). [`prefer-inject-function`](./prefer-inject-function.md) and [`forbid-nested-super-injections`](./forbid-nested-super-injections.md) are separate, opt-in rules in the same package.
+
+**Quick navigation:** [Custom `order` replaces defaults](#recipe-custom-order-replaces-defaults) · [`unknownPlacement`](#recipe-unknownplacement) · [Regex overlay slot](#recipe-regex-overlay-slot) · [Full default-order example](#full-example-every-default-slot-before-and-after-fix)
+
+## What gets checked
+
+The rule classifies each member using:
 
 - `@angular/core` APIs resolved via imports (local aliases like `inject as inj` resolve by **imported** symbol name — `inj()` still counts as `inject`)
 - Common Angular decorators (`@Input`, `@ViewChild`, `@HostBinding`, `@HostListener`, …)
 - Dedicated slots for `get`/`set` accessors (`getter-setter`), abstract members (`abstract`), and visibility buckets (`public-instance-field`, `public-instance-method`, …)
-- **Overlay** entries in `order`: regex (`regex:` shorthand or `{ type: "pattern" }`), plus optional `custom-func-*` / `custom-dec-*` matchers (see below)
+- **Overlay** entries in `order`: regex (`regex:` shorthand or `{ type: "pattern" }`), plus optional `custom-func-*` / `custom-dec-*` matchers (see [Options](#order))
+
+It reports members that are out of rank relative to your configured `order` (and optionally unmatched categories when `unknownPlacement` is `"error"`).
+
+## Interaction with `prefer-inject-function`
+
+[`prefer-inject-function`](./prefer-inject-function.md) moves constructor DI into `inject()` fields. With the **default** `order`, those fields belong in the **`inject`** tier immediately after the constructor. Run both rules together if you want a consistent end state: DI as fields, then ordered with the rest of the class.
 
 ## Rule details
 
@@ -79,28 +91,154 @@ Getter/setter pairs share one category (`getter-setter`); the setter rank is pin
 
 Private `#field` identifiers still classify into `private-instance-field`.
 
-## Lint messages (`wrongOrder`)
+## Examples
 
-Violations summarise **readable slot labels** and a **narrow slice** of `order` (a few neighbouring groups) rather than dumping the entire configuration.
+### Recipe: custom `order` replaces defaults
 
-## Limits & caveats
+If you set `order`, it **replaces** the entire built-in [`DEFAULT_ORDER`](../../src/rules/member-ordering.ts) — nothing is merged in. If you **omit** a tier such as `inject`, members that still classify as `inject` (for example `private readonly svc = inject(Foo)`) become **unmatched** and follow [`unknownPlacement`](#unknownplacement) (by default they sort **last**).
 
-- **Namespace Angular imports**: `import * as core … core.signal(...)` isn't matched by `@angular/core` symbol resolution unless extended later — prefer normal named imports when using this rule.
-- **Huge classes / deeply nested overlays**: autofix reshuffles verbatim source chunks; rerun Prettier/formatters afterward if needed.
+Options (fragment):
 
-## Fixer behaviour
+```javascript
+{
+  order: ['constructor', 'public-instance-field'],
+}
+```
 
-Moves members wholesale with leading comments intact; newline gaps follow pragmatic heuristics (constructor fences, accessor pairs, categories).
+**Before (violates order — `inject` field before constructor):**
 
-## Requirements
+```ts
+import { Component, inject } from '@angular/core';
 
-Lint **TypeScript** with **`@typescript-eslint/parser`** (decorators, types, signals).
+class Foo {}
+
+@Component({ selector: 'app-x', template: '' })
+export class X {
+    private readonly svc = inject(Foo);
+
+    constructor() {}
+
+    plain = 1;
+}
+```
+
+**After `eslint --fix`:** constructor first, then `plain`; the `inject()` field is **unknown** relative to this short `order` and is sorted **last** (default `unknownPlacement: 'last'`).
+
+```ts
+import { Component, inject } from '@angular/core';
+
+class Foo {}
+
+@Component({ selector: 'app-x', template: '' })
+export class X {
+    constructor() {}
+
+    plain = 1;
+
+    private readonly svc = inject(Foo);
+}
+```
+
+### Recipe: `unknownPlacement`
+
+Members whose category is **not** listed in `order` are “unknown”. The option controls what happens to them:
+
+| Value      | Behaviour                                                                           |
+| ---------- | ----------------------------------------------------------------------------------- |
+| `"last"`   | Sort them after all configured slots (default).                                     |
+| `"ignore"` | Do not lint ordering for those members only.                                        |
+| `"error"`  | Report `unknownCategory`; if any unknown remains, **`wrongOrder` has no auto-fix**. |
+
+**`ignore`** — only `inject` is in `order`; `extra` is skipped for ordering (valid code):
+
+```ts
+import { Component, inject } from '@angular/core';
+
+class Foo {}
+
+@Component({ selector: 'app-x', template: '' })
+export class X {
+    private readonly svc = inject(Foo);
+
+    extra = 1;
+}
+```
+
+```javascript
+// options
+{ unknownPlacement: 'ignore', order: ['inject'] }
+```
+
+**`error` + unresolved unknown blocks fixing other violations** — constructor is out of order relative to `inject`, and `extra` is unknown; auto-fix is disabled (`output: null` in tests):
+
+```ts
+import { Component, inject } from '@angular/core';
+
+class Foo {}
+
+@Component({ selector: 'app-x', template: '' })
+export class X {
+    private readonly svc = inject(Foo);
+
+    constructor() {}
+
+    extra = 1;
+}
+```
+
+```javascript
+{ unknownPlacement: 'error', order: ['constructor', 'inject'] }
+```
+
+### Recipe: regex overlay slot
+
+A pattern overlay can pull specific fields **between** built-in tiers. Here `legacyTracked` is matched by `{ type: 'pattern', regex: 'legacyTracked' }` and must sit **after** `inject` but **before** other `public-instance-field` members.
+
+**Before:**
+
+```ts
+import { Component, inject } from '@angular/core';
+
+class Foo {}
+
+@Component({ selector: 'app-x', template: '' })
+export class X {
+    private readonly svc = inject(Foo);
+
+    plain = 1;
+
+    legacyTracked = true;
+}
+```
+
+**After `eslint --fix`:**
+
+```ts
+import { Component, inject } from '@angular/core';
+
+class Foo {}
+
+@Component({ selector: 'app-x', template: '' })
+export class X {
+    private readonly svc = inject(Foo);
+
+    legacyTracked = true;
+
+    plain = 1;
+}
+```
+
+```javascript
+{
+  order: ['inject', { type: 'pattern', regex: 'legacyTracked' }, 'public-instance-field'],
+}
+```
 
 ---
 
-## Full example: every default slot (before and after `--fix`)
+## Full example: every default slot (before and after fix)
 
-The first block is deliberately **shuffled** — it includes one member for each category in [`DEFAULT_ORDER`](../../src/rules/member-ordering.ts) (constructor through visibility methods, plus `getter-setter` and `abstract`), and a tiny NgRx-shaped `store`/`selectSignal`/`select` demo. The second block is the exact result of this rule’s autofix (spacing follows the built-in gap heuristics).
+The first block is deliberately **shuffled** — it includes one member for each category in [`DEFAULT_ORDER`](../../src/rules/member-ordering.ts) (constructor through visibility methods, plus `getter-setter` and `abstract`), and a tiny NgRx-shaped `store`/`selectSignal`/`select` demo. The second block is the exact result of ESLint **`--fix`** (spacing follows the built-in gap heuristics).
 
 > **Note:** The `store` field is ordered after `selectSignal`/`select` fields here only so the example fits the default slot list; at runtime you would normally inject a store or declare `store` above those members. Treat this as an illustration of **lint ordering**, not Angular data-flow.
 
@@ -345,4 +483,54 @@ export abstract class KitchenSink {
 
     private privInstM(): void {}
 }
+```
+
+## Lint messages (`wrongOrder`)
+
+Violations summarise **readable slot labels** and a **narrow slice** of `order` (a few neighbouring groups) rather than dumping the entire configuration.
+
+## Fixer behaviour
+
+Moves members wholesale with leading comments intact; newline gaps follow pragmatic heuristics (constructor fences, accessor pairs, categories).
+
+**JSDoc / comments:** Each member’s slice starts at the first **leading** comment ESLint attaches to that node (`getCommentsBefore`) and includes trailing line/block comments before the next member when they belong to the same chunk. Block comments such as `/** … */` therefore **travel with the member** when it is reordered (see tests). After `--fix`, run your formatter (e.g. Prettier) on large edits so spacing matches team style.
+
+**Residual risk:** Trivia that is not associated by the parser with any class member (unusual placement) may not move as you expect; the rule is conservative text-splicing, not a full pretty-printer.
+
+## Limits & caveats
+
+- **Namespace Angular imports**: `import * as core … core.signal(...)` isn't matched by `@angular/core` symbol resolution unless extended later — prefer normal named imports when using this rule.
+- **Huge classes / deeply nested overlays**: autofix reshuffles verbatim source chunks; rerun Prettier/formatters afterward if needed.
+- **`inject()` not from `@angular/core`**: a call named `inject` that is **not** that imported symbol (e.g. a local helper) is classified as an ordinary field, not the `inject` slot.
+- **Nested `inject` calls**: a field whose initializer is not a direct `inject(...)` call (for example a **ternary** at the root) is not given the `inject` slot unless `exprContainsCall` reaches it; today a ternary with `inject` in both branches is treated like a normal instance field.
+
+## Requirements
+
+Lint **TypeScript** with **`@typescript-eslint/parser`** (decorators, types, signals).
+
+---
+
+## Config examples
+
+### Flat config (`recommended` preset)
+
+`configs.recommended` includes **`member-ordering`** only. Pair it with the inject rules manually if you need them (see the [README](../../README.md)).
+
+```javascript
+rules: {
+  ...angularClassOrdering.configs.recommended.rules,
+},
+```
+
+### Custom `order` with overlay
+
+```javascript
+rules: {
+  'angular-class-ordering/member-ordering': [
+    'error',
+    {
+      order: ['inject', { type: 'pattern', regex: 'legacyTracked' }, 'public-instance-field'],
+    },
+  ],
+},
 ```
