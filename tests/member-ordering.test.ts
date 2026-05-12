@@ -972,6 +972,43 @@ export abstract class KitchenSink {
 `,
         },
         {
+            name: 'boxedSignal field after linkedSignal violates custom-func overlay order',
+            code: `
+import { Component, signal, linkedSignal } from '@angular/core';
+
+declare function boxedSignal<T>(v: T): T;
+
+@Component({ selector: 'app-x', template: '' })
+export class X {
+    readonly plainSig = signal(0);
+
+    readonly linked = linkedSignal(() => this.plainSig());
+
+    readonly wrapped = boxedSignal(1);
+}
+`,
+            options: [
+                {
+                    order: ['signal', 'custom-func-boxedSignal', 'linkedSignal', 'computed', 'public-instance-field'],
+                },
+            ] as any,
+            errors: [{ messageId: 'wrongOrder' }],
+            output: `
+import { Component, signal, linkedSignal } from '@angular/core';
+
+declare function boxedSignal<T>(v: T): T;
+
+@Component({ selector: 'app-x', template: '' })
+export class X {
+    readonly plainSig = signal(0);
+
+    readonly wrapped = boxedSignal(1);
+
+    readonly linked = linkedSignal(() => this.plainSig());
+}
+`,
+        },
+        {
             name: '@Track field after ordinary field violates custom-dec overlay order',
             code: `
 import { Component } from '@angular/core';

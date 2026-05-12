@@ -4,7 +4,7 @@ Enforces a consistent, Angular-aware order for class members in classes decorate
 
 The plugin’s **`recommended`** preset turns **only** this rule on (at `error`). [`prefer-inject-function`](./prefer-inject-function.md) and [`forbid-nested-super-injections`](./forbid-nested-super-injections.md) are separate, opt-in rules in the same package.
 
-**Quick navigation:** [Custom `order` replaces defaults](#recipe-custom-order-replaces-defaults) · [`unknownPlacement`](#recipe-unknownplacement) · [Regex overlay slot](#recipe-regex-overlay-slot) · [Full default-order example](#full-example-every-default-slot-before-and-after-fix)
+**Quick navigation:** [Custom `order` replaces defaults](#recipe-custom-order-replaces-defaults) · [`unknownPlacement`](#recipe-unknownplacement) · [Custom `decorators`](#recipe-custom-decorators) · [Regex overlay slot](#recipe-regex-overlay-slot) · [`custom-func-` overlay](#recipe-custom-func--overlay-slot) · [`custom-dec-` overlay](#recipe-custom-dec--overlay-slot) · [Full default-order example](#full-example-every-default-slot-before-and-after-fix)
 
 ## What gets checked
 
@@ -190,6 +190,36 @@ export class X {
 { unknownPlacement: 'error', order: ['constructor', 'inject'] }
 ```
 
+### Recipe: custom `decorators`
+
+By default the rule activates on classes decorated with `@Component`, `@Directive`, `@Injectable`, or `@Pipe`. You can narrow (or widen) this list with the `decorators` option. Classes whose decorator is **not** in the list are silently skipped — no ordering is enforced on them.
+
+Here only `@Pipe` classes are linted; the `@Component` class is **ignored** even though its members are out of order:
+
+```ts
+import { Component, Pipe, inject } from '@angular/core';
+
+class Foo {}
+
+@Pipe({ name: 'test' })
+export class P {
+    private readonly svc = inject(Foo);
+}
+
+@Component({ selector: 'app-x', template: '' })
+export class NotLinted {
+    plain = 1;
+
+    other = 2;
+}
+```
+
+```javascript
+{
+  decorators: ['Pipe'],
+}
+```
+
 ### Recipe: regex overlay slot
 
 A pattern overlay can pull specific fields **between** built-in tiers. Here `legacyTracked` is matched by `{ type: 'pattern', regex: 'legacyTracked' }` and must sit **after** `inject` but **before** other `public-instance-field` members.
@@ -229,8 +259,102 @@ export class X {
 ```
 
 ```javascript
+// object form (supports `flags` and `:` inside the body)
 {
   order: ['inject', { type: 'pattern', regex: 'legacyTracked' }, 'public-instance-field'],
+}
+
+// equivalent `regex:` shorthand (shorter, but no `flags` and `:` in the body is ambiguous)
+{
+  order: ['inject', 'regex:legacyTracked', 'public-instance-field'],
+}
+```
+
+### Recipe: `custom-func-` overlay slot
+
+`custom-func-Foo` matches any member whose initializer (field) or body (method) contains a call to `Foo(...)` — including member-expression forms like `obj.Foo(...)`. This lets you carve out a dedicated tier for wrapper helpers that aren't part of Angular's built-in classification.
+
+Here a `boxedSignal` helper wraps a signal; we want those fields to sit **between** `signal` and `linkedSignal`.
+
+**Before (violates order — `boxedSignal` field after `linkedSignal`):**
+
+```ts
+import { Component, signal, linkedSignal } from '@angular/core';
+
+declare function boxedSignal<T>(v: T): T;
+
+@Component({ selector: 'app-x', template: '' })
+export class X {
+    readonly plainSig = signal(0);
+
+    readonly linked = linkedSignal(() => this.plainSig());
+
+    readonly wrapped = boxedSignal(1);
+}
+```
+
+**After `eslint --fix`:**
+
+```ts
+import { Component, signal, linkedSignal } from '@angular/core';
+
+declare function boxedSignal<T>(v: T): T;
+
+@Component({ selector: 'app-x', template: '' })
+export class X {
+    readonly plainSig = signal(0);
+
+    readonly wrapped = boxedSignal(1);
+
+    readonly linked = linkedSignal(() => this.plainSig());
+}
+```
+
+```javascript
+{
+  order: ['signal', 'custom-func-boxedSignal', 'linkedSignal', 'computed', 'public-instance-field'],
+}
+```
+
+### Recipe: `custom-dec-` overlay slot
+
+`custom-dec-X` matches any member decorated with `@X(...)` when `X` is **not** one of the built-in Angular decorator classifications (like `@Input`, `@HostBinding`, etc.). This is useful for project-specific or third-party decorators.
+
+Here a `@Track()` decorator marks telemetry fields; we want them **before** ordinary public fields.
+
+**Before (violates order — `@Track()` field after ordinary field):**
+
+```ts
+import { Component } from '@angular/core';
+
+declare function Track(opts?: unknown): PropertyDecorator;
+
+@Component({ selector: 'app-x', template: '' })
+export class X {
+    plain = 1;
+
+    @Track() trackedVal = true;
+}
+```
+
+**After `eslint --fix`:**
+
+```ts
+import { Component } from '@angular/core';
+
+declare function Track(opts?: unknown): PropertyDecorator;
+
+@Component({ selector: 'app-x', template: '' })
+export class X {
+    @Track() trackedVal = true;
+
+    plain = 1;
+}
+```
+
+```javascript
+{
+  order: ['constructor', 'custom-dec-Track', 'public-instance-field'],
 }
 ```
 
