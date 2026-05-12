@@ -12,8 +12,12 @@ The rule reports:
 
 - **Parameter properties** — `constructor(private readonly store: Store)` (any `public` / `protected` / `private`, with or without `readonly`, optional `?` on the binding).
 - **Parameters with `@Inject(...)` from `@angular/core`** — including `constructor(@Inject(TOKEN) foo: Foo)` with no access modifier (the fix emits a **`private readonly`** field).
+- **Bare typed parameters with non-primitive type annotations** — `constructor(router: Router)` without any modifier or decorator. Angular injects these via DI just like parameter properties. The fix emits a **`private readonly`** field.
 
-It does **not** flag ordinary constructor parameters that have **no** access modifier and **no** `@Inject` from `@angular/core`.
+**Not flagged:**
+
+- Parameters with **primitive** type annotations (`string`, `number`, `boolean`, `bigint`, `symbol`, `any`, `unknown`, `void`, `never`, `null`, `undefined`) — these are not DI tokens.
+- Parameters with **no type annotation** at all.
 
 Classes are only checked when they use one of the configured **class-level** decorators (default: `Component`, `Directive`, `Injectable`, `Pipe`).
 
@@ -128,6 +132,132 @@ const TOKEN = {};
 @Component({ template: '' })
 export class X {
     constructor(@Inject(TOKEN) @Attribute('role') private readonly x: string) {}
+}
+```
+
+### Bare typed parameter (no modifier, no decorator)
+
+Angular injects constructor params by type even without access modifiers. The fixer adds `private readonly` by default.
+
+**Before:**
+
+```ts
+import { Component } from '@angular/core';
+
+class Router {
+    navigate(_: string): void {}
+}
+
+@Component({ template: '' })
+export class X {
+    constructor(router: Router) {
+        router.navigate('/home');
+    }
+}
+```
+
+**After `eslint --fix`:**
+
+```ts
+import { Component, inject } from '@angular/core';
+
+class Router {
+    navigate(_: string): void {}
+}
+
+@Component({ template: '' })
+export class X {
+    constructor() {
+        this.router.navigate('/home');
+    }
+
+    private readonly router = inject(Router);
+}
+```
+
+### Mixed: modifier params + bare typed params
+
+When a constructor has both parameter properties and bare typed params, all are migrated together in one batch fix.
+
+**Before:**
+
+```ts
+import { Component } from '@angular/core';
+
+class SomeService {}
+class Router {}
+
+@Component({ template: '' })
+export class X {
+    constructor(
+        private svc: SomeService,
+        router: Router,
+    ) {}
+}
+```
+
+**After `eslint --fix`:**
+
+```ts
+import { Component, inject } from '@angular/core';
+
+class SomeService {}
+class Router {}
+
+@Component({ template: '' })
+export class X {
+    constructor() {}
+
+    private svc = inject(SomeService);
+    private readonly router = inject(Router);
+}
+```
+
+### Optional bare typed parameter
+
+A `?` on a bare typed param maps to `{ optional: true }` in the inject options — the same as `@Optional()`.
+
+**Before:**
+
+```ts
+import { Component } from '@angular/core';
+
+class Router {}
+
+@Component({ template: '' })
+export class X {
+    constructor(router?: Router) {}
+}
+```
+
+**After `eslint --fix`:**
+
+```ts
+import { Component, inject } from '@angular/core';
+
+class Router {}
+
+@Component({ template: '' })
+export class X {
+    constructor() {}
+
+    private readonly router = inject(Router, { optional: true });
+}
+```
+
+### Report only: bare param with union/array type (no auto-fix)
+
+Complex type annotations (unions, arrays, generics without a single type reference) are reported but cannot be auto-fixed — the inject token is ambiguous.
+
+```ts
+import { Component } from '@angular/core';
+
+class Router {}
+
+@Component({ template: '' })
+export class X {
+    // preferInject — fix manually
+    constructor(router: Router | null, items: Router[]) {}
 }
 ```
 
@@ -402,7 +532,7 @@ export class X {
 
 ### 5. Access modifiers
 
-Parameter property modifiers are preserved on the new field. A bare `@Inject(...)` parameter without an access modifier becomes **`private readonly`**.
+Parameter property modifiers are preserved on the new field. A bare parameter without an access modifier (either with `@Inject(...)` or with just a type annotation) becomes **`private readonly`**.
 
 **Before:**
 

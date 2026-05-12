@@ -254,6 +254,26 @@ function collectParamDecoratorFlags(
     return { unsupported, flags, attributeStringArg, hasInject };
 }
 
+const PRIMITIVE_TYPE_KEYWORDS = new Set([
+    'TSStringKeyword',
+    'TSNumberKeyword',
+    'TSBooleanKeyword',
+    'TSBigIntKeyword',
+    'TSSymbolKeyword',
+    'TSAnyKeyword',
+    'TSUnknownKeyword',
+    'TSVoidKeyword',
+    'TSNeverKeyword',
+    'TSNullKeyword',
+    'TSUndefinedKeyword',
+]);
+
+function hasNonPrimitiveTypeAnnotation(node: TSESTree.Identifier): boolean {
+    const typeAnn = node.typeAnnotation;
+    if (!typeAnn?.typeAnnotation) return false;
+    return !PRIMITIVE_TYPE_KEYWORDS.has(typeAnn.typeAnnotation.type);
+}
+
 export function isDiConstructorParam(
     node: TSESTree.Node,
     importMap: Map<string, ImportBinding>,
@@ -261,8 +281,8 @@ export function isDiConstructorParam(
     if (node.type === 'TSParameterProperty') return true;
     if (node.type === 'Identifier') {
         const decs = (node as TSESTree.Identifier & { decorators?: TSESTree.Decorator[] }).decorators;
-        if (!decs?.length) return false;
-        return decs.some((d) => getDecoratorImportedName(d, importMap) === 'Inject');
+        if (decs?.some((d) => getDecoratorImportedName(d, importMap) === 'Inject')) return true;
+        if (hasNonPrimitiveTypeAnnotation(node)) return true;
     }
     return false;
 }

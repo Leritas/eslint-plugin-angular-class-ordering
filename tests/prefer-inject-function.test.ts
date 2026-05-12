@@ -52,6 +52,56 @@ export class X extends Base {
 }
 `,
         },
+        {
+            name: 'ignores bare param with primitive type (number)',
+            code: `
+import { Component } from '@angular/core';
+@Component({ template: '' })
+export class X {
+  constructor(count: number) {}
+}
+`,
+        },
+        {
+            name: 'ignores bare param with primitive type (string)',
+            code: `
+import { Component } from '@angular/core';
+@Component({ template: '' })
+export class X {
+  constructor(name: string) {}
+}
+`,
+        },
+        {
+            name: 'ignores bare param with no type annotation',
+            code: `
+import { Component } from '@angular/core';
+@Component({ template: '' })
+export class X {
+  constructor(value) {}
+}
+`,
+        },
+        {
+            name: 'ignores bare param with any/unknown/void/never types',
+            code: `
+import { Component } from '@angular/core';
+@Component({ template: '' })
+export class X {
+  constructor(a: any, b: unknown, c: void, d: never) {}
+}
+`,
+        },
+        {
+            name: 'ignores bare param with boolean/bigint/symbol/null/undefined types',
+            code: `
+import { Component } from '@angular/core';
+@Component({ template: '' })
+export class X {
+  constructor(a: boolean, b: bigint, c: symbol, d: null, e: undefined) {}
+}
+`,
+        },
     ],
     invalid: [
         {
@@ -321,6 +371,179 @@ export class X {
             errors: [{ messageId: 'preferInject' }],
         },
         {
+            name: 'migrates bare typed param with class type',
+            code: `
+import { Component } from '@angular/core';
+class Router {}
+@Component({ template: '' })
+export class X {
+  constructor(router: Router) {}
+}
+`,
+            output: `
+import { Component, inject } from '@angular/core';
+class Router {}
+@Component({ template: '' })
+export class X {
+  constructor() {}
+
+  private readonly router = inject(Router);
+}
+`,
+            errors: [{ messageId: 'preferInject' }],
+        },
+        {
+            name: 'migrates bare typed param and rewrites body references to this',
+            code: `
+import { Component } from '@angular/core';
+class Router { navigate(_: string) {} }
+@Component({ template: '' })
+export class X {
+  constructor(router: Router) {
+    router.navigate('/home');
+  }
+}
+`,
+            output: `
+import { Component, inject } from '@angular/core';
+class Router { navigate(_: string) {} }
+@Component({ template: '' })
+export class X {
+  constructor() {
+    this.router.navigate('/home');
+  }
+
+  private readonly router = inject(Router);
+}
+`,
+            errors: [{ messageId: 'preferInject' }],
+        },
+        {
+            name: 'migrates mixed: modifier param + bare typed param in same constructor',
+            code: `
+import { Component } from '@angular/core';
+class SomeService {}
+class Router {}
+@Component({ template: '' })
+export class X {
+  constructor(private svc: SomeService, router: Router) {}
+}
+`,
+            output: `
+import { Component, inject } from '@angular/core';
+class SomeService {}
+class Router {}
+@Component({ template: '' })
+export class X {
+  constructor() {}
+
+  private svc = inject(SomeService);
+  private readonly router = inject(Router);
+}
+`,
+            errors: [{ messageId: 'preferInject' }, { messageId: 'preferInject' }],
+        },
+        {
+            name: 'migrates bare typed param with qualified name',
+            code: `
+import { Component } from '@angular/core';
+declare namespace Ns { class Store {} }
+@Component({ template: '' })
+export class X {
+  constructor(store: Ns.Store) {}
+}
+`,
+            output: `
+import { Component, inject } from '@angular/core';
+declare namespace Ns { class Store {} }
+@Component({ template: '' })
+export class X {
+  constructor() {}
+
+  private readonly store = inject(Ns.Store);
+}
+`,
+            errors: [{ messageId: 'preferInject' }],
+        },
+        {
+            name: 'bare param with union type is reported without autofix',
+            code: `
+import { Component } from '@angular/core';
+class Router {}
+@Component({ template: '' })
+export class X {
+  constructor(router: Router | null) {}
+}
+`,
+            errors: [{ messageId: 'preferInject' }],
+        },
+        {
+            name: 'bare param with array type is reported without autofix',
+            code: `
+import { Component } from '@angular/core';
+class Router {}
+@Component({ template: '' })
+export class X {
+  constructor(items: Router[]) {}
+}
+`,
+            errors: [{ messageId: 'preferInject' }],
+        },
+        {
+            name: 'optional bare typed param maps to inject with optional flag',
+            code: `
+import { Component } from '@angular/core';
+class Router {}
+@Component({ template: '' })
+export class X {
+  constructor(router?: Router) {}
+}
+`,
+            output: `
+import { Component, inject } from '@angular/core';
+class Router {}
+@Component({ template: '' })
+export class X {
+  constructor() {}
+
+  private readonly router = inject(Router, { optional: true });
+}
+`,
+            errors: [{ messageId: 'preferInject' }],
+        },
+        {
+            name: 'bare typed param forwarded to super is not migrated (handled by companion rule)',
+            code: `
+import { Component } from '@angular/core';
+class Base {}
+class Router {}
+class Svc {}
+@Component({ template: '' })
+export class X extends Base {
+  constructor(router: Router, svc: Svc) {
+    super(router);
+    this.svc.use();
+  }
+}
+`,
+            output: `
+import { Component, inject } from '@angular/core';
+class Base {}
+class Router {}
+class Svc {}
+@Component({ template: '' })
+export class X extends Base {
+  constructor(router: Router) {
+    super(router);
+    this.svc.use();
+  }
+
+  private readonly svc = inject(Svc);
+}
+`,
+            errors: [{ messageId: 'preferInject' }],
+        },
+        {
             name: 'preserves public and protected parameter property modifiers',
             code: `
 import { Component } from '@angular/core';
@@ -521,6 +744,21 @@ export class X extends Base {
     }
     void inner;
     super();
+  }
+}
+`,
+            errors: [{ messageId: 'forbidNestedSuperInjections' }],
+        },
+        {
+            name: 'bare typed param forwarded to super is reported',
+            code: `
+import { Component } from '@angular/core';
+class Base {}
+class Router {}
+@Component({ template: '' })
+export class X extends Base {
+  constructor(router: Router) {
+    super(router);
   }
 }
 `,
