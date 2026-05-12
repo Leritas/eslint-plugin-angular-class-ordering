@@ -755,25 +755,42 @@ const FixerEngine = {
         const innerStart = braceOpen?.range[1] ?? classBody.range[0] + 1;
         const innerEnd = classBody.range[1] - 1;
 
-        const ranges = members.map((member, i): [number, number] => {
+        const ranges: [number, number][] = [];
+        for (let i = 0; i < members.length; i++) {
+            const member = members[i];
             const next = members[i + 1];
-            const commentsBefore = sourceCode.getCommentsBefore(member);
+            const prevEndLine = i > 0 ? members[i - 1].loc.end.line : -1;
+            const commentsBefore = sourceCode.getCommentsBefore(member).filter((c) => c.loc.start.line !== prevEndLine);
             let start = commentsBefore.length > 0 ? commentsBefore[0].range[0] : member.range[0];
 
             while (start > innerStart && sourceCode.text[start - 1] !== '\n') start--;
 
-            const cap = next ? (sourceCode.getCommentsBefore(next)[0]?.range[0] ?? next.range[0]) : innerEnd;
+            if (ranges.length > 0) {
+                start = Math.max(start, ranges[i - 1][1]);
+            }
+
+            const nextComments = next
+                ? sourceCode.getCommentsBefore(next).filter((c) => c.loc.start.line !== member.loc.end.line)
+                : [];
+            const cap = next ? (nextComments[0]?.range[0] ?? next.range[0]) : innerEnd;
             let end = member.range[1];
+            const memberEndLine = member.loc.end.line;
+            let hasInlineTrailing = false;
 
             for (const c of sourceCode.getCommentsAfter(member)) {
                 const cStart = c.range?.[0];
                 const cEnd = c.range?.[1];
                 if (cStart === undefined || cEnd === undefined) continue;
+                if (c.loc.start.line === memberEndLine) {
+                    end = Math.max(end, cEnd);
+                    hasInlineTrailing = true;
+                    continue;
+                }
                 if (cStart >= cap) break;
                 end = Math.max(end, cEnd);
             }
-            return [start, Math.min(end, cap)];
-        });
+            ranges.push([start, hasInlineTrailing ? end : Math.min(end, cap)]);
+        }
 
         const ordered: OrderedChunk[] = members
             .map((member, i) => ({
@@ -829,6 +846,9 @@ const FixerEngine = {
         if (isMethodNonCtor(prev.member) || isMethodNonCtor(curr.member)) return '\n\n';
         if (hasComments) return '\n\n';
         if (prev.category !== curr.category) return '\n\n';
+
+        const currHasDecorators = (curr.member.decorators?.length ?? 0) > 0;
+        if (currHasDecorators) return '\n\n';
 
         const prRo = isPropertyLike(prev.member) && prev.member.readonly;
         const crRo = isPropertyLike(curr.member) && curr.member.readonly;

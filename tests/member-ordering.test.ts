@@ -915,12 +915,14 @@ export abstract class KitchenSink {
     readonly viewSigMulti = viewChildren('items');
 
     @ViewChild('refA') viewDec?: ElementRef;
+
     @ViewChildren('items') viewDecList?: unknown;
 
     readonly contentSig = contentChild('slotB');
     readonly contentSigMulti = contentChildren('q');
 
     @ContentChildren('q') contentDecList?: unknown;
+
     @ContentChild('slotB') contentDec?: unknown;
 
     readonly fromSig = this.store.selectSignal(() => 0);
