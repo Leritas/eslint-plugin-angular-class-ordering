@@ -32,10 +32,10 @@ import {
     ViewChild,
 } from '@angular/core';
 import { NgModel } from '@angular/forms';
+import { createSelectMap } from '@ngxs/store';
 import { Observable, Subject } from 'rxjs';
 
 declare function Select(...args: unknown[]): PropertyDecorator;
-declare function createSelectMap(map: Record<string, unknown>): unknown;
 declare const SomeSelectors: { isReady: unknown; isPending: unknown; data: unknown; items: unknown };
 declare const OtherSelectors: { documentsCount: unknown };
 
@@ -125,10 +125,10 @@ import {
     ViewChild,
 } from '@angular/core';
 import { NgModel } from '@angular/forms';
+import { createSelectMap } from '@ngxs/store';
 import { Observable, Subject } from 'rxjs';
 
 declare function Select(...args: unknown[]): PropertyDecorator;
-declare function createSelectMap(map: Record<string, unknown>): unknown;
 declare const SomeSelectors: { isReady: unknown; isPending: unknown; data: unknown; items: unknown };
 declare const OtherSelectors: { documentsCount: unknown };
 
@@ -155,6 +155,11 @@ export class DetailComponent implements OnInit, OnDestroy {
     @ViewChild('commentControlRef')
     public commentControlRef: NgModel;
 
+    public selectors = createSelectMap({
+        isReady: SomeSelectors.isReady,
+        documentsCount: OtherSelectors.documentsCount,
+    });
+
     @Select(SomeSelectors.isPending)
     public isPending$: Observable<boolean>;
 
@@ -167,10 +172,6 @@ export class DetailComponent implements OnInit, OnDestroy {
     @Select(SomeSelectors.isReady)
     public readonly isReady$: Observable<boolean>;
 
-    public selectors = createSelectMap({
-        isReady: SomeSelectors.isReady,
-        documentsCount: OtherSelectors.documentsCount,
-    });
     public chartWidth = '542px';
     public isFullMode = false;
 

@@ -5,6 +5,7 @@ import type { TSESLint, TSESTree } from '@typescript-eslint/utils';
 export const RULE_NAME = 'member-ordering';
 
 const ANGULAR_CORE = '@angular/core';
+const NGXS_STORE = '@ngxs/store';
 
 export const DEFAULT_DECORATORS = ['Component', 'Directive', 'Injectable', 'Pipe'] as const;
 
@@ -32,6 +33,7 @@ export const DEFAULT_ORDER = [
     'content-query-decorator',
 
     // --- Global State ---
+    'store-select-map',
     'store-select-signal',
     'store-select-observable',
     'store-select-decorator',
@@ -466,11 +468,14 @@ function resolveCategory(
     if (hasDeco(['Output'])) return 'output-decorator';
     if (hasDeco(['Select'])) return 'store-select-decorator';
 
-    const isCoreCall = (node: TSESTree.CallExpression, name?: string): boolean => {
+    const isResolvedImportCall = (node: TSESTree.CallExpression, module: string, importedName?: string): boolean => {
         if (!isIdentifier(node.callee)) return false;
         const info = importMap.get(node.callee.name);
-        return info?.module === ANGULAR_CORE && (!name || info.importedName === name);
+        return info?.module === module && (!importedName || info.importedName === importedName);
     };
+
+    const isCoreCall = (node: TSESTree.CallExpression, name?: string): boolean =>
+        isResolvedImportCall(node, ANGULAR_CORE, name);
 
     if (isCallExpr(init)) {
         if (isCoreCall(init, 'inject')) return 'inject';
@@ -487,11 +492,13 @@ function resolveCategory(
         if (isCoreCall(init, 'signal')) return 'signal';
         if (isCoreCall(init, 'linkedSignal')) return 'linkedSignal';
         if (isCoreCall(init, 'computed')) return 'computed';
+
+        if (isResolvedImportCall(init, NGXS_STORE, 'createSelectMap')) return 'store-select-map';
     }
 
     const hasCoreCall = (names: string | readonly string[]): boolean => {
         const nameArr = Array.isArray(names) ? names : [names];
-        return exprContainsCall(init, (e) => nameArr.some((n) => isCoreCall(e, n)));
+        return exprContainsCall(init, (e) => nameArr.some((n) => isResolvedImportCall(e, ANGULAR_CORE, n)));
     };
 
     if (hasCoreCall(['viewChild', 'viewChildren'])) return 'view-query-signal';
@@ -526,6 +533,10 @@ function resolveCategory(
         })
     ) {
         return 'store-select-observable';
+    }
+
+    if (exprContainsCall(init, (e) => isResolvedImportCall(e, NGXS_STORE, 'createSelectMap'))) {
+        return 'store-select-map';
     }
 
     if (hasCoreCall('signal')) return 'signal';

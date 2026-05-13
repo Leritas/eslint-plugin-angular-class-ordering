@@ -68,24 +68,24 @@ Members that don’t resolve to anything in `order` (no modifier bucket listed, 
 
 ## Categories (default full list — copy when customizing `order`)
 
-| Slot                                                                         | Meaning                                              |
-| ---------------------------------------------------------------------------- | ---------------------------------------------------- |
-| `constructor`                                                                | Constructor                                          |
-| `inject`                                                                     | `inject(...)` (including import aliases `as`)        |
-| `input-signal` / `output-signal` / `model-signal`                            | Signal-based inputs/outputs/model                    |
-| `input-decorator` / `output-decorator`                                       | `@Input()` / `@Output()`                             |
-| `host-binding-signal`                                                        | `hostBinding(...)` fields                            |
-| `host-binding-decorator`                                                     | `@HostBinding(...)`                                  |
-| `host-listener-signal`                                                       | `hostListener(...)` fields                           |
-| `host-listener-decorator`                                                    | `@HostListener(...)`                                 |
-| `view-query-signal` / `view-query-decorator`                                 | `viewChild` / `@ViewChild`                           |
-| `content-query-signal` / `content-query-decorator`                           | `contentChild` / `@ContentChild`                     |
-| `store-select-signal` / `store-select-observable` / `store-select-decorator` | NgRx-style `.selectSignal` / `.select` / `@Select()` |
-| `signal` / `linkedSignal` / `computed`                                       | Core `signal`, `linkedSignal`, `computed`            |
-| `public-*-field` / … / `private-*-field`                                     | Ordinary fields by visibility                        |
-| `getter-setter`                                                              | Concrete `get` / `set` accessors (pairing preserved) |
-| `abstract`                                                                   | `abstract` methods and abstract accessors            |
-| `public-*-method` / … / `private-*-method`                                   | Ordinary methods by visibility                       |
+| Slot                                                                                              | Meaning                                                                               |
+| ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `constructor`                                                                                     | Constructor                                                                           |
+| `inject`                                                                                          | `inject(...)` (including import aliases `as`)                                         |
+| `input-signal` / `output-signal` / `model-signal`                                                 | Signal-based inputs/outputs/model                                                     |
+| `input-decorator` / `output-decorator`                                                            | `@Input()` / `@Output()`                                                              |
+| `host-binding-signal`                                                                             | `hostBinding(...)` fields                                                             |
+| `host-binding-decorator`                                                                          | `@HostBinding(...)`                                                                   |
+| `host-listener-signal`                                                                            | `hostListener(...)` fields                                                            |
+| `host-listener-decorator`                                                                         | `@HostListener(...)`                                                                  |
+| `view-query-signal` / `view-query-decorator`                                                      | `viewChild` / `@ViewChild`                                                            |
+| `content-query-signal` / `content-query-decorator`                                                | `contentChild` / `@ContentChild`                                                      |
+| `store-select-map` / `store-select-signal` / `store-select-observable` / `store-select-decorator` | NGXS `createSelectMap` from `@ngxs/store` / `.selectSignal` / `.select` / `@Select()` |
+| `signal` / `linkedSignal` / `computed`                                                            | Core `signal`, `linkedSignal`, `computed`                                             |
+| `public-*-field` / … / `private-*-field`                                                          | Ordinary fields by visibility                                                         |
+| `getter-setter`                                                                                   | Concrete `get` / `set` accessors (pairing preserved)                                  |
+| `abstract`                                                                                        | `abstract` methods and abstract accessors                                             |
+| `public-*-method` / … / `private-*-method`                                                        | Ordinary methods by visibility                                                        |
 
 Getter/setter pairs share one category (`getter-setter`); the setter rank is pinned to the getter.
 
@@ -362,7 +362,7 @@ export class X {
 
 ## Full example: every default slot (before and after fix)
 
-The first block is deliberately **shuffled** — it includes one member for each category in [`DEFAULT_ORDER`](../../src/rules/member-ordering.ts) (constructor through visibility methods, plus `getter-setter` and `abstract`), and a small NgRx-style demo: `inject(Store)` plus fields that call `selectSignal` / `select` on that store. The second block is the exact result of ESLint **`--fix`** (spacing follows the built-in gap heuristics).
+The first block is deliberately **shuffled** — it includes one member for each category in [`DEFAULT_ORDER`](../../src/rules/member-ordering.ts) (constructor through visibility methods, plus `getter-setter` and `abstract`), plus NgRx-style `inject(Store)` with `.selectSignal` / `.select`, NGXS `createSelectMap` from `@ngxs/store` (`store-select-map`), and `@Select()`. The second block is the exact result of ESLint **`--fix`** (spacing follows the built-in gap heuristics).
 
 **Before (chaos):**
 
@@ -393,6 +393,7 @@ import {
     HostListener,
     ElementRef,
 } from '@angular/core';
+import { createSelectMap } from '@ngxs/store';
 
 declare function Select(...args: unknown[]): PropertyDecorator;
 
@@ -401,6 +402,9 @@ declare class Store {
     selectSignal<T>(projector: () => T): unknown;
     select(projector: () => unknown): unknown;
 }
+
+/** Stand-in selector refs for NGXS createSelectMap demo (types are loose). */
+declare const SliceSelectors: { alpha: unknown; beta: unknown };
 
 @Component({ selector: 'app-kitchen-sink', template: '' })
 export abstract class KitchenSink {
@@ -446,6 +450,11 @@ export abstract class KitchenSink {
     readonly fromObs = this.store.select(() => ({}));
 
     readonly fromSig = this.store.selectSignal(() => 0);
+
+    readonly selectMapBundle = createSelectMap({
+        alpha: SliceSelectors.alpha,
+        beta: SliceSelectors.beta,
+    });
 
     @HostBinding('class.active') hostBindDec = true;
 
@@ -523,6 +532,7 @@ import {
     HostListener,
     ElementRef,
 } from '@angular/core';
+import { createSelectMap } from '@ngxs/store';
 
 declare function Select(...args: unknown[]): PropertyDecorator;
 
@@ -531,6 +541,9 @@ declare class Store {
     selectSignal<T>(projector: () => T): unknown;
     select(projector: () => unknown): unknown;
 }
+
+/** Stand-in selector refs for NGXS createSelectMap demo (types are loose). */
+declare const SliceSelectors: { alpha: unknown; beta: unknown };
 
 @Component({ selector: 'app-kitchen-sink', template: '' })
 export abstract class KitchenSink {
@@ -562,13 +575,20 @@ export abstract class KitchenSink {
     readonly viewSigMulti = viewChildren('items');
 
     @ViewChild('refA') viewDec?: ElementRef;
+
     @ViewChildren('items') viewDecList?: unknown;
 
     readonly contentSig = contentChild('slotB');
     readonly contentSigMulti = contentChildren('q');
 
     @ContentChildren('q') contentDecList?: unknown;
+
     @ContentChild('slotB') contentDec?: unknown;
+
+    readonly selectMapBundle = createSelectMap({
+        alpha: SliceSelectors.alpha,
+        beta: SliceSelectors.beta,
+    });
 
     readonly fromSig = this.store.selectSignal(() => 0);
 

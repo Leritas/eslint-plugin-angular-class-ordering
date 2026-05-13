@@ -157,6 +157,42 @@ export class X {
 `,
         },
         {
+            name: 'NGXS createSelectMap from @ngxs/store maps to store-select-map before @Select',
+            code: `
+import { Component } from '@angular/core';
+import { createSelectMap } from '@ngxs/store';
+import { Observable } from 'rxjs';
+
+declare function Select(...args: unknown[]): PropertyDecorator;
+declare const Slice: { a: unknown; b: unknown };
+
+@Component({ selector: 'app-x', template: '' })
+export class X {
+    public selectors = createSelectMap({ a: Slice.a, b: Slice.b });
+
+    @Select() a$: Observable<unknown>;
+}
+`,
+        },
+        {
+            name: 'createSelectMap nested in wrapper call maps to store-select-map',
+            code: `
+import { Component } from '@angular/core';
+import { createSelectMap } from '@ngxs/store';
+
+function wrap<T>(v: T): T {
+    return v;
+}
+
+declare const Slice: { a: unknown };
+
+@Component({ selector: 'app-x', template: '' })
+export class X {
+    readonly selectors = wrap(createSelectMap({ a: Slice.a }));
+}
+`,
+        },
+        {
             name: 'signal linkedSignal computed ordering',
             code: `
 import { Component, signal, linkedSignal, computed } from '@angular/core';
@@ -635,6 +671,40 @@ export class X {
 `,
         },
         {
+            name: 'createSelectMap after @Select is reordered before @Select',
+            code: `
+import { Component } from '@angular/core';
+import { createSelectMap } from '@ngxs/store';
+import { Observable } from 'rxjs';
+
+declare function Select(...args: unknown[]): PropertyDecorator;
+declare const Slice: { a: unknown };
+
+@Component({ selector: 'app-x', template: '' })
+export class X {
+    @Select() a$: Observable<unknown>;
+
+    public selectors = createSelectMap({ a: Slice.a });
+}
+`,
+            errors: [{ messageId: 'wrongOrder' }],
+            output: `
+import { Component } from '@angular/core';
+import { createSelectMap } from '@ngxs/store';
+import { Observable } from 'rxjs';
+
+declare function Select(...args: unknown[]): PropertyDecorator;
+declare const Slice: { a: unknown };
+
+@Component({ selector: 'app-x', template: '' })
+export class X {
+    public selectors = createSelectMap({ a: Slice.a });
+
+    @Select() a$: Observable<unknown>;
+}
+`,
+        },
+        {
             name: 'protected method must not precede public method (same-tier visibility ordering)',
             code: `
 import { Component } from '@angular/core';
@@ -748,6 +818,7 @@ import {
     HostListener,
     ElementRef,
 } from '@angular/core';
+import { createSelectMap } from '@ngxs/store';
 
 declare function Select(...args: unknown[]): PropertyDecorator;
 
@@ -756,6 +827,9 @@ declare class Store {
     selectSignal<T>(projector: () => T): unknown;
     select(projector: () => unknown): unknown;
 }
+
+/** Stand-in selector refs for NGXS createSelectMap demo (types are loose). */
+declare const SliceSelectors: { alpha: unknown; beta: unknown };
 
 @Component({ selector: 'app-kitchen-sink', template: '' })
 export abstract class KitchenSink {
@@ -801,6 +875,11 @@ export abstract class KitchenSink {
     readonly fromObs = this.store.select(() => ({}));
 
     readonly fromSig = this.store.selectSignal(() => 0);
+
+    readonly selectMapBundle = createSelectMap({
+        alpha: SliceSelectors.alpha,
+        beta: SliceSelectors.beta,
+    });
 
     @HostBinding('class.active') hostBindDec = true;
 
@@ -876,6 +955,7 @@ import {
     HostListener,
     ElementRef,
 } from '@angular/core';
+import { createSelectMap } from '@ngxs/store';
 
 declare function Select(...args: unknown[]): PropertyDecorator;
 
@@ -884,6 +964,9 @@ declare class Store {
     selectSignal<T>(projector: () => T): unknown;
     select(projector: () => unknown): unknown;
 }
+
+/** Stand-in selector refs for NGXS createSelectMap demo (types are loose). */
+declare const SliceSelectors: { alpha: unknown; beta: unknown };
 
 @Component({ selector: 'app-kitchen-sink', template: '' })
 export abstract class KitchenSink {
@@ -924,6 +1007,11 @@ export abstract class KitchenSink {
     @ContentChildren('q') contentDecList?: unknown;
 
     @ContentChild('slotB') contentDec?: unknown;
+
+    readonly selectMapBundle = createSelectMap({
+        alpha: SliceSelectors.alpha,
+        beta: SliceSelectors.beta,
+    });
 
     readonly fromSig = this.store.selectSignal(() => 0);
 
