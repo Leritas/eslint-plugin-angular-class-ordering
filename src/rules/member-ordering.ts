@@ -455,9 +455,6 @@ function resolveCategory(
 
     if (isMethod(member)) {
         if (member.kind === 'constructor') return 'constructor';
-        if ('abstract' in member && member.abstract) return 'abstract';
-        if (member.type === 'TSAbstractMethodDefinition') return 'abstract';
-        if (member.kind === 'get' || member.kind === 'set') return 'getter-setter';
     }
 
     if (hasDeco(['ViewChild', 'ViewChildren'])) return 'view-query-decorator';
@@ -542,6 +539,12 @@ function resolveCategory(
     if (hasCoreCall('signal')) return 'signal';
     if (hasCoreCall('linkedSignal')) return 'linkedSignal';
     if (hasCoreCall('computed')) return 'computed';
+
+    if (isMethod(member)) {
+        if ('abstract' in member && member.abstract) return 'abstract';
+        if (member.type === 'TSAbstractMethodDefinition') return 'abstract';
+    }
+    if (isMethod(member) && (member.kind === 'get' || member.kind === 'set')) return 'getter-setter';
 
     const acc = member.accessibility ?? 'public';
     const type = isMethod(member) ? 'method' : 'field';

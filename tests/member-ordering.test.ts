@@ -498,6 +498,59 @@ export class X {
 }
 `,
         },
+        {
+            name: '@HostBinding on concrete getter uses host-binding-decorator before signals',
+            code: `
+import { Component, HostBinding, signal, computed } from '@angular/core';
+
+@Component({ selector: 'app-demo-panel', template: '' })
+export class DemoPanel {
+    @HostBinding('attr.data-state')
+    get hostState(): string {
+        return this.mode();
+    }
+
+    readonly mode = signal<'on' | 'off'>('off');
+
+    readonly summary = computed(() => String(this.mode()));
+}
+`,
+        },
+        {
+            name: '@HostBinding getter pairs with same-name setter in host-binding slot before signals',
+            code: `
+import { Component, HostBinding, signal } from '@angular/core';
+
+@Component({ selector: 'app-pair-host', template: '' })
+export class PairHost {
+    @HostBinding('attr.data-x')
+    get hostToken(): string {
+        return String(this.alpha());
+    }
+
+    set hostToken(value: string) {
+        void value;
+    }
+
+    readonly alpha = signal(0);
+
+    readonly beta = signal(1);
+}
+`,
+        },
+        {
+            name: '@Input on abstract property before signals (abstract property + decorator)',
+            code: `
+import { Component, Input, signal } from '@angular/core';
+
+@Component({ selector: 'app-demo-shell', template: '' })
+export abstract class DemoShell {
+    @Input() abstract rowLabel: string;
+
+    readonly phase = signal(0);
+}
+`,
+        },
     ],
     invalid: [
         {
@@ -593,6 +646,104 @@ export class X {
     constructor() {}
 
     private readonly svc = inject(Foo);
+}
+`,
+        },
+        {
+            name: '@HostBinding getter must move above signal and computed when listed after them',
+            code: `
+import { Component, HostBinding, signal, computed } from '@angular/core';
+
+@Component({ selector: 'app-demo-panel', template: '' })
+export class DemoPanel {
+    readonly mode = signal<'on' | 'off'>('off');
+
+    readonly summary = computed(() => String(this.mode()));
+
+    @HostBinding('attr.data-state')
+    get hostState(): string {
+        return this.mode();
+    }
+}
+`,
+            errors: [{ messageId: 'wrongOrder' }],
+            output: `
+import { Component, HostBinding, signal, computed } from '@angular/core';
+
+@Component({ selector: 'app-demo-panel', template: '' })
+export class DemoPanel {
+    @HostBinding('attr.data-state')
+    get hostState(): string {
+        return this.mode();
+    }
+
+    readonly mode = signal<'on' | 'off'>('off');
+
+    readonly summary = computed(() => String(this.mode()));
+}
+`,
+        },
+        {
+            name: '@HostBinding getter + same-name setter: pair stays contiguous in host-binding above signals after fix',
+            code: `
+import { Component, HostBinding, signal } from '@angular/core';
+
+@Component({ selector: 'app-pair-host', template: '' })
+export class PairHost {
+    readonly alpha = signal(0);
+
+    set hostToken(value: string) {
+        void value;
+    }
+
+    readonly beta = signal(1);
+
+    @HostBinding('attr.data-x')
+    get hostToken(): string {
+        return String(this.alpha());
+    }
+}
+`,
+            errors: [{ messageId: 'wrongOrder' }],
+            output: `
+import { Component, HostBinding, signal } from '@angular/core';
+
+@Component({ selector: 'app-pair-host', template: '' })
+export class PairHost {
+    @HostBinding('attr.data-x')
+    get hostToken(): string {
+        return String(this.alpha());
+    }
+    set hostToken(value: string) {
+        void value;
+    }
+
+    readonly alpha = signal(0);
+    readonly beta = signal(1);
+}
+`,
+        },
+        {
+            name: '@Input abstract property must move above signal when signal is listed first',
+            code: `
+import { Component, Input, signal } from '@angular/core';
+
+@Component({ selector: 'app-demo-shell', template: '' })
+export abstract class DemoShell {
+    readonly phase = signal(0);
+
+    @Input() abstract rowLabel: string;
+}
+`,
+            errors: [{ messageId: 'wrongOrder' }],
+            output: `
+import { Component, Input, signal } from '@angular/core';
+
+@Component({ selector: 'app-demo-shell', template: '' })
+export abstract class DemoShell {
+    @Input() abstract rowLabel: string;
+
+    readonly phase = signal(0);
 }
 `,
         },
