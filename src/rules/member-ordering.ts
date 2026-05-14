@@ -500,6 +500,7 @@ function resolveCategory(
         if (isCoreCall(init, 'computed')) return 'computed';
 
         if (isResolvedImportCall(init, NGXS_STORE, 'createSelectMap')) return 'store-select-map';
+        if (isResolvedImportCall(init, NGXS_STORE, 'select')) return 'store-select-signal';
     }
 
     const hasCoreCall = (names: string | readonly string[]): boolean => {
@@ -543,6 +544,10 @@ function resolveCategory(
 
     if (exprContainsCall(init, (e) => isResolvedImportCall(e, NGXS_STORE, 'createSelectMap'))) {
         return 'store-select-map';
+    }
+
+    if (exprContainsCall(init, (e) => isResolvedImportCall(e, NGXS_STORE, 'select'))) {
+        return 'store-select-signal';
     }
 
     if (hasCoreCall('signal')) return 'signal';

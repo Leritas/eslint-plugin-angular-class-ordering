@@ -80,24 +80,24 @@ This does **not** change ordering **across** slots (for example `inject` vs `pub
 
 ## Categories (default full list — copy when customizing `order`)
 
-| Slot                                                                                              | Meaning                                                                               |
-| ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| `constructor`                                                                                     | Constructor                                                                           |
-| `inject`                                                                                          | `inject(...)` (including import aliases `as`)                                         |
-| `input-signal` / `output-signal` / `model-signal`                                                 | Signal-based inputs/outputs/model                                                     |
-| `input-decorator` / `output-decorator`                                                            | `@Input()` / `@Output()`                                                              |
-| `host-binding-signal`                                                                             | `hostBinding(...)` fields                                                             |
-| `host-binding-decorator`                                                                          | `@HostBinding(...)`                                                                   |
-| `host-listener-signal`                                                                            | `hostListener(...)` fields                                                            |
-| `host-listener-decorator`                                                                         | `@HostListener(...)`                                                                  |
-| `view-query-signal` / `view-query-decorator`                                                      | `viewChild` / `@ViewChild`                                                            |
-| `content-query-signal` / `content-query-decorator`                                                | `contentChild` / `@ContentChild`                                                      |
-| `store-select-map` / `store-select-signal` / `store-select-observable` / `store-select-decorator` | NGXS `createSelectMap` from `@ngxs/store` / `.selectSignal` / `.select` / `@Select()` |
-| `signal` / `linkedSignal` / `computed`                                                            | Core `signal`, `linkedSignal`, `computed`                                             |
-| `public-*-field` / … / `private-*-field`                                                          | Ordinary fields by visibility                                                         |
-| `getter-setter`                                                                                   | Concrete `get` / `set` accessors (pairing preserved)                                  |
-| `abstract`                                                                                        | `abstract` methods and abstract accessors                                             |
-| `public-*-method` / … / `private-*-method`                                                        | Ordinary methods by visibility                                                        |
+| Slot                                                                                              | Meaning                                                                                                                                                     |
+| ------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `constructor`                                                                                     | Constructor                                                                                                                                                 |
+| `inject`                                                                                          | `inject(...)` (including import aliases `as`)                                                                                                               |
+| `input-signal` / `output-signal` / `model-signal`                                                 | Signal-based inputs/outputs/model                                                                                                                           |
+| `input-decorator` / `output-decorator`                                                            | `@Input()` / `@Output()`                                                                                                                                    |
+| `host-binding-signal`                                                                             | `hostBinding(...)` fields                                                                                                                                   |
+| `host-binding-decorator`                                                                          | `@HostBinding(...)`                                                                                                                                         |
+| `host-listener-signal`                                                                            | `hostListener(...)` fields                                                                                                                                  |
+| `host-listener-decorator`                                                                         | `@HostListener(...)`                                                                                                                                        |
+| `view-query-signal` / `view-query-decorator`                                                      | `viewChild` / `@ViewChild`                                                                                                                                  |
+| `content-query-signal` / `content-query-decorator`                                                | `contentChild` / `@ContentChild`                                                                                                                            |
+| `store-select-map` / `store-select-signal` / `store-select-observable` / `store-select-decorator` | NGXS `createSelectMap` from `@ngxs/store` / imported `select(...)` from `@ngxs/store` and `.selectSignal(...)` / `.select(...)` on a receiver / `@Select()` |
+| `signal` / `linkedSignal` / `computed`                                                            | Core `signal`, `linkedSignal`, `computed`                                                                                                                   |
+| `public-*-field` / … / `private-*-field`                                                          | Ordinary fields by visibility                                                                                                                               |
+| `getter-setter`                                                                                   | Concrete `get` / `set` accessors (pairing preserved)                                                                                                        |
+| `abstract`                                                                                        | `abstract` methods and abstract accessors                                                                                                                   |
+| `public-*-method` / … / `private-*-method`                                                        | Ordinary methods by visibility                                                                                                                              |
 
 Getter/setter pairs share one category (`getter-setter`); the setter rank is pinned to the getter.
 

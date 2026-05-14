@@ -193,6 +193,60 @@ export class X {
 `,
         },
         {
+            name: 'NGXS functional select from @ngxs/store maps to store-select-signal before @Select',
+            code: `
+import { Component } from '@angular/core';
+import { select } from '@ngxs/store';
+import { Observable } from 'rxjs';
+
+declare function Select(...args: unknown[]): PropertyDecorator;
+declare const LayoutSelectors: { isWebViewMode: unknown };
+
+@Component({ selector: 'app-x', template: '' })
+export class X {
+    public readonly isWebViewMode = select(LayoutSelectors.isWebViewMode);
+
+    @Select() slice$: Observable<unknown>;
+}
+`,
+        },
+        {
+            name: 'NGXS functional select import alias still resolves to store-select-signal',
+            code: `
+import { Component } from '@angular/core';
+import { select as pickState } from '@ngxs/store';
+
+declare const LayoutSelectors: { isWebViewMode: unknown };
+
+@Component({ selector: 'app-x', template: '' })
+export class X {
+    public readonly isWebViewMode = pickState(LayoutSelectors.isWebViewMode);
+
+    plain = 1;
+}
+`,
+        },
+        {
+            name: 'NGXS functional select nested in wrapper maps to store-select-signal',
+            code: `
+import { Component } from '@angular/core';
+import { select } from '@ngxs/store';
+
+function wrap<T>(v: T): T {
+    return v;
+}
+
+declare const LayoutSelectors: { isWebViewMode: unknown };
+
+@Component({ selector: 'app-x', template: '' })
+export class X {
+    public readonly isWebViewMode = wrap(select(LayoutSelectors.isWebViewMode));
+
+    plain = 1;
+}
+`,
+        },
+        {
             name: 'signal linkedSignal computed ordering',
             code: `
 import { Component, signal, linkedSignal, computed } from '@angular/core';
@@ -866,6 +920,40 @@ export class X {
     public selectors = createSelectMap({ a: Slice.a });
 
     @Select() a$: Observable<unknown>;
+}
+`,
+        },
+        {
+            name: 'NGXS functional select after @Select is reordered before @Select',
+            code: `
+import { Component } from '@angular/core';
+import { select } from '@ngxs/store';
+import { Observable } from 'rxjs';
+
+declare function Select(...args: unknown[]): PropertyDecorator;
+declare const LayoutSelectors: { isWebViewMode: unknown };
+
+@Component({ selector: 'app-x', template: '' })
+export class X {
+    @Select() slice$: Observable<unknown>;
+
+    public readonly isWebViewMode = select(LayoutSelectors.isWebViewMode);
+}
+`,
+            errors: [{ messageId: 'wrongOrder' }],
+            output: `
+import { Component } from '@angular/core';
+import { select } from '@ngxs/store';
+import { Observable } from 'rxjs';
+
+declare function Select(...args: unknown[]): PropertyDecorator;
+declare const LayoutSelectors: { isWebViewMode: unknown };
+
+@Component({ selector: 'app-x', template: '' })
+export class X {
+    public readonly isWebViewMode = select(LayoutSelectors.isWebViewMode);
+
+    @Select() slice$: Observable<unknown>;
 }
 `,
         },
