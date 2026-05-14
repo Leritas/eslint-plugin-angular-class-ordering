@@ -14,6 +14,11 @@ export type RuleOptions = {
     decorators?: readonly string[];
     order?: readonly OrderEntry[];
     unknownPlacement?: UnknownPlacement;
+    /**
+     * When `true` (default), `readonly` properties sort above non-readonly in the same slot; `--fix` enforces that.
+     * When `false`, declaration order is preserved within a slot (no readonly vs mutable reordering).
+     */
+    readonlyOrdering?: boolean;
 };
 export type MessageIds = 'wrongOrder' | 'unknownCategory';
 export declare const messages: {
@@ -24,6 +29,7 @@ export declare const rule: ESLintUtils.RuleModule<"wrongOrder" | "unknownCategor
     decorators: ("Component" | "Directive" | "Injectable" | "Pipe")[];
     order: ("constructor" | "computed" | "inject" | "input-signal" | "input-decorator" | "output-signal" | "output-decorator" | "model-signal" | "host-binding-signal" | "host-binding-decorator" | "host-listener-signal" | "host-listener-decorator" | "view-query-signal" | "view-query-decorator" | "content-query-signal" | "content-query-decorator" | "store-select-map" | "store-select-signal" | "store-select-observable" | "store-select-decorator" | "signal" | "linkedSignal" | "public-static-field" | "protected-static-field" | "private-static-field" | "public-instance-field" | "protected-instance-field" | "private-instance-field" | "getter-setter" | "abstract" | "public-static-method" | "protected-static-method" | "private-static-method" | "public-instance-method" | "protected-instance-method" | "private-instance-method")[];
     unknownPlacement: "last";
+    readonlyOrdering: true;
 }], unknown, ESLintUtils.RuleListener> & {
     name: string;
 };

@@ -4,7 +4,7 @@ Enforces a consistent, Angular-aware order for class members in classes decorate
 
 The plugin’s **`recommended`** preset turns **only** this rule on (at `error`). [`prefer-inject-function`](./prefer-inject-function.md) and [`forbid-nested-super-injections`](./forbid-nested-super-injections.md) are separate, opt-in rules in the same package.
 
-**Quick navigation:** [Custom `order` replaces defaults](#recipe-custom-order-replaces-defaults) · [`unknownPlacement`](#recipe-unknownplacement) · [Custom `decorators`](#recipe-custom-decorators) · [Regex overlay slot](#recipe-regex-overlay-slot) · [`custom-func-` overlay](#recipe-custom-func--overlay-slot) · [`custom-dec-` overlay](#recipe-custom-dec--overlay-slot) · [Full default-order example](#full-example-every-default-slot-before-and-after-fix)
+**Quick navigation:** [Custom `order` replaces defaults](#recipe-custom-order-replaces-defaults) · [unknownPlacement](#unknownplacement) · [readonlyOrdering](#readonlyordering) · [Custom `decorators`](#recipe-custom-decorators) · [Regex overlay slot](#recipe-regex-overlay-slot) · [`custom-func-` overlay](#recipe-custom-func--overlay-slot) · [`custom-dec-` overlay](#recipe-custom-dec--overlay-slot) · [Full default-order example](#full-example-every-default-slot-before-and-after-fix)
 
 ## What gets checked
 
@@ -14,6 +14,7 @@ The rule classifies each member using:
 - Common Angular decorators (`@Input`, `@ViewChild`, `@HostBinding`, `@HostListener`, …)
 - Dedicated slots for `get`/`set` accessors (`getter-setter`), abstract members (`abstract`), and visibility buckets (`public-instance-field`, `public-instance-method`, …)
 - **Overlay** entries in `order`: regex (`regex:` shorthand or `{ type: "pattern" }`), plus optional `custom-func-*` / `custom-dec-*` matchers (see [Options](#order))
+- **Readonly vs mutable in one slot:** with the default options, **`readonly` fields are sorted above non-readonly** in the same category (for example both in `public-instance-field`). Turn that off with [`readonlyOrdering: false`](#readonlyordering) so declaration order is preserved for that pairing only.
 
 It reports members that are out of rank relative to your configured `order` (and optionally unmatched categories when `unknownPlacement` is `"error"`).
 
@@ -25,6 +26,7 @@ It reports members that are out of rank relative to your configured `order` (and
 
 - **Type**: layout
 - **Fixable**: yes (code)
+- **Readonly ordering (default):** `readonlyOrdering` defaults to **`true`**, so **`readonly` class fields come before non-readonly fields** when they share the same ordering slot. Set **`readonlyOrdering: false`** to disable that sub-sort and keep the author’s source order within the slot. Details: [readonlyOrdering](#readonlyordering).
 
 ## Options
 
@@ -65,6 +67,16 @@ Members that don’t resolve to anything in `order` (no modifier bucket listed, 
 - `"last"` (default): ranks after configured slots when sorting
 - `"ignore"`: skip ordering lint for unmatched members only
 - `"error"`: report `unknownCategory`; disables auto-fix if any unmatched member remains
+
+### `readonlyOrdering`
+
+**Default: `true` — `readonly` fields are ordered first** within a single ordering slot (for example two members both in `public-instance-field`). Set to **`false`** only when you need to preserve declaration order between `readonly` and mutable fields in that slot (for example field initializers that depend on that order).
+
+- Type: `boolean`
+- **`true` (default)**: `readonly` members get a slightly lower fractional rank so they sort first; **`--fix`** reorders accordingly. When spacing falls through to the same-category branch, the fixer inserts an **extra blank line** when leaving a `readonly` field run and entering a non-readonly field in that slot (visual subgroup).
+- **`false`**: no readonly modifier on ranks — only slot index plus declaration-order tie-breakers — so **declaration order is preserved** within the slot. Use this when you rely on field initializer order across mutable vs `readonly` members and do not want the rule to rewrite that.
+
+This does **not** change ordering **across** slots (for example `inject` vs `public-instance-field`); it only affects members that share the same resolved category.
 
 ## Categories (default full list — copy when customizing `order`)
 

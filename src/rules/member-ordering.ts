@@ -78,6 +78,11 @@ export type RuleOptions = {
     decorators?: readonly string[];
     order?: readonly OrderEntry[];
     unknownPlacement?: UnknownPlacement;
+    /**
+     * When `true` (default), `readonly` properties sort above non-readonly in the same slot; `--fix` enforces that.
+     * When `false`, declaration order is preserved within a slot (no readonly vs mutable reordering).
+     */
+    readonlyOrdering?: boolean;
 };
 
 export type MessageIds = 'wrongOrder' | 'unknownCategory';
@@ -93,7 +98,8 @@ const CUSTOM_FUNC_PREFIX = 'custom-func-' as const;
 const CUSTOM_DEC_PREFIX = 'custom-dec-' as const;
 
 const RANK_MODIFIERS = {
-    READONLY_PENALTY: 0.5,
+    /** Applied (negated) to `readonly` property ranks when `readonlyOrdering` is enabled so they sort earlier within the same slot. */
+    READONLY_RANK_OFFSET: 0.5,
     ACCESSOR_SETTER_OFFSET: 1e-12,
     ORIGINAL_ORDER_TIE: 1e-6,
 } as const;
@@ -127,6 +133,9 @@ const optionsSchema = {
         unknownPlacement: {
             type: 'string',
             enum: ['last', 'ignore', 'error'],
+        },
+        readonlyOrdering: {
+            type: 'boolean',
         },
     },
 };
@@ -610,6 +619,7 @@ function calculateRanks(
     orderIndex: Map<string, number>,
     unknownPlacement: UnknownPlacement,
     slotKeysLength: number,
+    readonlyOrdering: boolean,
 ): {
     ranks: (number | null)[];
     skipFlags: boolean[];
@@ -624,16 +634,18 @@ function calculateRanks(
     members.forEach((m, i) => {
         const category = categories[i];
         const idx = category !== null && category !== undefined ? orderIndex.get(category) : undefined;
-        const readonlyPenalty =
-            isPropertyLike(m) && 'readonly' in m && m.readonly ? RANK_MODIFIERS.READONLY_PENALTY : 0;
+        const readonlyRankAdjustment =
+            readonlyOrdering && isPropertyLike(m) && 'readonly' in m && m.readonly
+                ? -RANK_MODIFIERS.READONLY_RANK_OFFSET
+                : 0;
         const tieBreaker = i * RANK_MODIFIERS.ORIGINAL_ORDER_TIE;
 
         if (idx === undefined) {
             if (unknownPlacement === 'ignore') skipFlags[i] = true;
             else if (unknownPlacement === 'error') unknownErrors.push(i);
-            else ranks[i] = slotKeysLength + readonlyPenalty + tieBreaker;
+            else ranks[i] = slotKeysLength + readonlyRankAdjustment + tieBreaker;
         } else {
-            ranks[i] = idx + readonlyPenalty + tieBreaker;
+            ranks[i] = idx + readonlyRankAdjustment + tieBreaker;
         }
     });
 
@@ -655,6 +667,7 @@ type VisitContext = {
     slotLabels: string[];
     unknownPlacement: UnknownPlacement;
     orderRaw: readonly OrderEntry[];
+    readonlyOrdering: boolean;
 };
 
 function slotLabelFromCategory(
@@ -678,7 +691,17 @@ function visitAngularClass(
     importMap: Map<string, ImportBinding>,
     ctx: VisitContext,
 ): void {
-    const { context, sourceCode, orderIndex, slotKeys, overlayProbes, slotLabels, unknownPlacement, orderRaw } = ctx;
+    const {
+        context,
+        sourceCode,
+        orderIndex,
+        slotKeys,
+        overlayProbes,
+        slotLabels,
+        unknownPlacement,
+        orderRaw,
+        readonlyOrdering,
+    } = ctx;
     const members = classNode.body.body.filter(isLintedMember);
 
     const categories = members.map((m) => resolveCategory(m, importMap, sourceCode, overlayProbes, slotKeys));
@@ -688,6 +711,7 @@ function visitAngularClass(
         orderIndex,
         unknownPlacement,
         slotKeys.length,
+        readonlyOrdering,
     );
 
     unknownErrors.forEach((idx) =>
@@ -737,6 +761,7 @@ function visitAngularClass(
                         members,
                         ranks,
                         categories,
+                        readonlyOrdering,
                     ),
             });
         } else {
@@ -764,6 +789,7 @@ const FixerEngine = {
         members: LintedClassMember[],
         ranks: (number | null)[],
         categories: (string | null)[],
+        readonlyOrdering: boolean,
     ): Rule.Fix {
         const braceOpen = sourceCode.getFirstToken(classBody as TSESTree.Node, (t) => t.value === '{');
         const innerStart = braceOpen?.range[1] ?? classBody.range[0] + 1;
@@ -816,9 +842,10 @@ const FixerEngine = {
             .sort((a, b) => {
                 if (a.rank != null && b.rank != null) return a.rank !== b.rank ? a.rank - b.rank : a.i - b.i;
                 if (a.rank == null && b.rank == null) {
+                    if (!readonlyOrdering) return a.i - b.i;
                     const rA = isPropertyLike(a.member) && a.member.readonly;
                     const rB = isPropertyLike(b.member) && b.member.readonly;
-                    return rA !== rB ? (rA ? 1 : -1) : a.i - b.i;
+                    return rA !== rB ? (rA ? -1 : 1) : a.i - b.i;
                 }
                 return a.rank != null ? -1 : 1;
             })
@@ -829,7 +856,7 @@ const FixerEngine = {
 
         let newText = '';
         ordered.forEach((chunk, k) => {
-            if (k > 0) newText += FixerEngine.calculateGap(ordered[k - 1], chunk, sourceCode);
+            if (k > 0) newText += FixerEngine.calculateGap(ordered[k - 1], chunk, sourceCode, readonlyOrdering);
             newText += chunk.raw;
         });
 
@@ -842,7 +869,12 @@ const FixerEngine = {
     /**
      * Chooses blank-line spacing between two consecutive chunks based on member kinds and categories.
      */
-    calculateGap(prev: OrderedChunk, curr: OrderedChunk, sourceCode: TSESLint.SourceCode): string {
+    calculateGap(
+        prev: OrderedChunk,
+        curr: OrderedChunk,
+        sourceCode: TSESLint.SourceCode,
+        readonlyOrdering: boolean,
+    ): string {
         const isMethodNonCtor = (m: LintedClassMember): boolean => isMethod(m) && m.kind !== 'constructor';
 
         if (
@@ -864,9 +896,10 @@ const FixerEngine = {
         const currHasDecorators = (curr.member.decorators?.length ?? 0) > 0;
         if (currHasDecorators) return '\n\n';
 
+        if (!readonlyOrdering) return '\n';
         const prRo = isPropertyLike(prev.member) && prev.member.readonly;
         const crRo = isPropertyLike(curr.member) && curr.member.readonly;
-        return !prRo && crRo ? '\n\n' : '\n';
+        return prRo && !crRo ? '\n\n' : '\n';
     },
 };
 
@@ -886,6 +919,7 @@ export const rule = createRule({
             decorators: [...DEFAULT_DECORATORS],
             order: [...DEFAULT_ORDER],
             unknownPlacement: 'last',
+            readonlyOrdering: true,
         } satisfies RuleOptions,
     ],
     create(context) {
@@ -893,6 +927,7 @@ export const rule = createRule({
         const decorators = options.decorators ?? [...DEFAULT_DECORATORS];
         const unknownPlacement = options.unknownPlacement ?? 'last';
         const orderRaw = options.order ?? [...DEFAULT_ORDER];
+        const readonlyOrdering = options.readonlyOrdering ?? true;
 
         const { slotKeys, overlayProbes, slotLabels } = normalizeOrderEntries(orderRaw);
         const orderIndex = new Map(slotKeys.map((key, i): [string, number] => [key, i]));
@@ -914,6 +949,7 @@ export const rule = createRule({
                         slotLabels,
                         unknownPlacement,
                         orderRaw,
+                        readonlyOrdering,
                     });
                 }
             },

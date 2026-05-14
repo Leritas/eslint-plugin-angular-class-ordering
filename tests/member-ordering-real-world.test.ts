@@ -160,6 +160,9 @@ export class DetailComponent implements OnInit, OnDestroy {
         documentsCount: OtherSelectors.documentsCount,
     });
 
+    @Select(SomeSelectors.isReady)
+    public readonly isReady$: Observable<boolean>;
+
     @Select(SomeSelectors.isPending)
     public isPending$: Observable<boolean>;
 
@@ -169,16 +172,13 @@ export class DetailComponent implements OnInit, OnDestroy {
     @Select(SomeSelectors.items)
     public items$: Observable<unknown[]>;
 
-    @Select(SomeSelectors.isReady)
-    public readonly isReady$: Observable<boolean>;
-
-    public chartWidth = '542px';
-    public isFullMode = false;
-
     public readonly SUMMARY_TAB_TYPES = {
         GRAPH: 'graph',
         LIST: 'list',
     };
+
+    public chartWidth = '542px';
+    public isFullMode = false;
 
     private destroy$: Subject<void> = new Subject<void>();
 

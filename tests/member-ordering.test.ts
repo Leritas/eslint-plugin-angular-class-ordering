@@ -551,6 +551,20 @@ export abstract class DemoShell {
 }
 `,
         },
+        {
+            name: 'readonlyOrdering false allows mutable field above readonly in same public-instance-field',
+            options: [{ readonlyOrdering: false }] as any,
+            code: `
+import { Component } from '@angular/core';
+
+@Component({ selector: 'app-x', template: '' })
+export class X {
+    public total = this.chunk;
+
+    public readonly chunk = 1;
+}
+`,
+        },
     ],
     invalid: [
         {
@@ -1316,6 +1330,30 @@ export class X {
 
     flag = true;
     x = flag ? inject(A) : inject(B);
+}
+`,
+        },
+        {
+            name: 'readonly public field sorts above mutable in same public-instance-field tier (default readonlyOrdering)',
+            code: `
+import { Component } from '@angular/core';
+
+@Component({ selector: 'app-x', template: '' })
+export class X {
+    public total = this.chunk;
+
+    public readonly chunk = 1;
+}
+`,
+            errors: [{ messageId: 'wrongOrder' }],
+            output: `
+import { Component } from '@angular/core';
+
+@Component({ selector: 'app-x', template: '' })
+export class X {
+    public readonly chunk = 1;
+
+    public total = this.chunk;
 }
 `,
         },

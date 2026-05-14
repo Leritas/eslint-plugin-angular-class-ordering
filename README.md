@@ -65,6 +65,7 @@ rules: {
     {
       decorators: ["Component", "Injectable"],
       unknownPlacement: "last",
+      readonlyOrdering: false, // optional: keep declaration order within a slot (no readonly-first autofix)
     },
   ],
 },
